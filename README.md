@@ -71,6 +71,72 @@ bash ~/.claude/skills/codeagent/scripts/check_backends.sh
 ```
 to verify local availability.
 
+### Configure Default Model and Parameters
+
+`codeagent-wrapper` reads defaults from:
+
+- `~/.codeagent/config.yaml` (global defaults)
+- `~/.codeagent/models.json` (agent presets + backend API config)
+
+Example `~/.codeagent/config.yaml`:
+
+```yaml
+backend: codex
+model: gpt-4.1
+reasoning-effort: high
+skip-permissions: false
+full-output: false
+```
+
+Example `~/.codeagent/models.json`:
+
+```json
+{
+  "default_backend": "codex",
+  "default_model": "gpt-4.1",
+  "backends": {
+    "codex": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "YOUR_OPENAI_KEY"
+    },
+    "claude": {
+      "base_url": "https://api.anthropic.com",
+      "api_key": "YOUR_ANTHROPIC_KEY"
+    },
+    "gemini": {
+      "api_key": "YOUR_GEMINI_KEY"
+    }
+  },
+  "agents": {
+    "develop": {
+      "backend": "codex",
+      "model": "gpt-4.1",
+      "reasoning": "high",
+      "prompt_file": "~/.codeagent/prompts/develop.md"
+    },
+    "doc-writer": {
+      "backend": "claude",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium"
+    }
+  }
+}
+```
+
+Config precedence (high -> low):
+
+1. CLI flags (`--backend`, `--model`, `--reasoning-effort`)
+2. `--agent` preset from `models.json`
+3. `config.yaml` and `CODEAGENT_*` env vars
+4. Built-in defaults
+
+Backend parameter notes:
+
+- Codex: supports `model` and `reasoning-effort`.
+- Claude: supports `model`, `skip-permissions`, and backend `base_url`/`api_key`.
+- Gemini: supports `model` and backend `base_url`/`api_key` (also reads `~/.gemini/.env`).
+- OpenCode: supports `model`.
+
 ## Core Architecture
 
 | Role | Agent | Responsibility |

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "If the Bash command contains 'codeagent-wrapper' but does NOT contain '--backend' or '--agent' or '--parallel', respond with: DENY: codeagent-wrapper requires --backend, --agent, or --parallel flag. See codeagent skill for correct invocation syntax.\n\nIf the command does not contain 'codeagent-wrapper', or if it contains '--backend' or '--agent' or '--parallel', respond with: ALLOW"
+            "prompt": "If the Bash command contains 'codeagent-wrapper', respond with: DENY: Direct codeagent-wrapper invocation is blocked. Route subagent calls via ~/.claude/skills/codeagent/scripts/route_subagent.sh.\n\nIf the command does not contain 'codeagent-wrapper', respond with: ALLOW"
           }
         ]
       }

@@ -78,6 +78,72 @@ bash ~/.claude/skills/codeagent/scripts/check_backends.sh
 ```
 进行本机检查。
 
+### 默认模型与参数配置
+
+`codeagent-wrapper` 会读取以下默认配置：
+
+- `~/.codeagent/config.yaml`（全局默认）
+- `~/.codeagent/models.json`（agent 预设 + 后端 API 配置）
+
+示例 `~/.codeagent/config.yaml`：
+
+```yaml
+backend: codex
+model: gpt-4.1
+reasoning-effort: high
+skip-permissions: false
+full-output: false
+```
+
+示例 `~/.codeagent/models.json`：
+
+```json
+{
+  "default_backend": "codex",
+  "default_model": "gpt-4.1",
+  "backends": {
+    "codex": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "YOUR_OPENAI_KEY"
+    },
+    "claude": {
+      "base_url": "https://api.anthropic.com",
+      "api_key": "YOUR_ANTHROPIC_KEY"
+    },
+    "gemini": {
+      "api_key": "YOUR_GEMINI_KEY"
+    }
+  },
+  "agents": {
+    "develop": {
+      "backend": "codex",
+      "model": "gpt-4.1",
+      "reasoning": "high",
+      "prompt_file": "~/.codeagent/prompts/develop.md"
+    },
+    "doc-writer": {
+      "backend": "claude",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium"
+    }
+  }
+}
+```
+
+配置优先级（高 -> 低）：
+
+1. CLI 参数（`--backend`、`--model`、`--reasoning-effort`）
+2. `models.json` 中 `--agent` 预设
+3. `config.yaml` 与 `CODEAGENT_*` 环境变量
+4. 内置默认值
+
+后端参数说明：
+
+- Codex：支持 `model` 与 `reasoning-effort`
+- Claude：支持 `model`、`skip-permissions`、`base_url`/`api_key`
+- Gemini：支持 `model`、`base_url`/`api_key`（同时会读取 `~/.gemini/.env`）
+- OpenCode：支持 `model`
+
 ## 后端 CLI 要求
 
 | 后端 | 必需功能 |

@@ -9,7 +9,7 @@ A **codeagent-first subagent routing toolkit** for Claude Code. It provides:
 - **`codeagent-wrapper`** — a Go binary that dispatches tasks to backend CLIs (Codex, Claude, Gemini, OpenCode)
 - **`bin/cli.js` + `install.py`** — dual installers (JS for `npx`, Python fallback) that copy skills, merge hooks into `~/.claude/settings.json`, and install the binary
 
-Other skills in-tree (`do`, `omo`, `sparv`, `browser`, etc.) are **collaboration references** — they consume `codeagent-wrapper` but are not the primary install surface of this fork.
+Other skills in-tree (`do`, `omo`, `sparv`, `browser`, etc.) are **collaboration references** — they should route subagent execution through `skills/codeagent/scripts/route_subagent.sh` and are not the primary install surface of this fork.
 
 **Upstream**: `cexll/myclaude` — this fork (`liafonx/myclaude`) focuses on the codeagent routing skill; `codeagent-wrapper` binary is sourced from upstream releases.
 
@@ -133,7 +133,7 @@ cd codeagent-wrapper && make install  # installs to ~/.claude/bin/
 | Role | Responsibility | Examples |
 |------|---------------|----------|
 | **Workflow skill** | Decides **when** to create subagents, **what** tasks, **how many**, success criteria | `do`, `omo`, `sparv` |
-| **Routing skill** | Decides **which backend** and **how** to invoke `codeagent-wrapper` | `codeagent` |
+| **Routing skill** | Decides **which backend** and enforces routed invocation via `route_subagent.sh` | `codeagent` |
 
 ### Workflow → Routing (Input)
 
@@ -141,8 +141,11 @@ cd codeagent-wrapper && make install  # installs to ~/.claude/bin/
 |-------|----------|-------------|
 | `task` | ✅ | Task content / prompt for the subagent |
 | `working_dir` | ✅ | Absolute path to working directory |
+| `task_type` | ❌ | Workflow classification key for backend preference lookup |
 | `backend` | ❌ | Explicit backend hint (overrides routing) |
 | `agent` | ❌ | Agent preset name (bypasses routing) |
+| `model` | ❌ | Optional model override |
+| `reasoning_effort` | ❌ | Optional reasoning override |
 | `full_output` | ❌ | Request full output in parallel mode |
 
 ### Routing → Workflow (Output)
@@ -170,7 +173,9 @@ retry same → codex → claude → gemini → opencode → NEVER direct executi
 
 ### Hook Enforcement
 
-The PreToolUse hook validates every `codeagent-wrapper` Bash call has `--backend`, `--agent`, or `--parallel`. Non-codeagent commands are ignored.
+Direct `codeagent-wrapper` invocation is blocked. Workflow skills must call:
+
+`~/.claude/skills/codeagent/scripts/route_subagent.sh -- <wrapper args>`
 
 ## Common Development Tasks
 

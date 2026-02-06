@@ -1,6 +1,6 @@
 ---
 name: codeagent
-version: 1.0.0
+version: 1.0.1
 description: Route subagent creation through codeagent-wrapper with intelligent backend selection. Analyzes task characteristics to choose the optimal backend (Codex/Claude/Gemini/OpenCode) and enforces correct invocation format. Use whenever a subagent needs to be created.
 ---
 
@@ -37,62 +37,61 @@ When a subagent is requested, classify the task and select a backend in this pri
 
 This is a **priority-weighted guide**, not a strict type mapping. Real tasks are often hybrid — use your best judgment and allow workflow skills to override with explicit `backend:` hints.
 
-## Invocation Syntax
+## Invocation Contract
+
+### Mandatory entrypoint (no direct wrapper calls from workflow skills)
+
+Workflow skills MUST invoke subagents via:
+
+```bash
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- <codeagent-wrapper args...>
+```
+
+Direct `codeagent-wrapper` invocations from workflow logic are blocked by hook policy.
 
 ### Single Task — HEREDOC (mandatory for complex tasks)
 
 ```bash
-codeagent-wrapper --backend <backend> - [working_dir] <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --backend <backend> - [working_dir] <<'EOF'
 <task content here>
 EOF
 ```
 
 **Why HEREDOC?** Tasks often contain code blocks, nested quotes, shell metacharacters (`$`, `` ` ``, `\`), and multiline text. HEREDOC passes these safely without shell interpretation.
 
-### Single Task — Direct Quoting (simple tasks only)
+### With Agent Preset (bypasses classification, still routed through codeagent)
 
 ```bash
-codeagent-wrapper --backend codex "simple task here" [working_dir]
-```
-
-### With Agent Preset (bypasses routing)
-
-```bash
-codeagent-wrapper --agent <preset_name> - [working_dir] <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --agent <preset_name> - [working_dir] <<'EOF'
 <task content here>
 EOF
 ```
 
-Agent presets are defined in `~/.codeagent/models.json` and encode backend + model + prompt. Workflow skills like `do` and `omo` use this mode.
+Agent presets are defined in `~/.codeagent/models.json` and encode backend + model + prompt.
 
 ### Resume Session
 
 ```bash
-codeagent-wrapper --backend <backend> resume <session_id> - <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --backend <backend> resume <session_id> - <<'EOF'
 <follow-up task>
 EOF
 ```
 
 ### Invocation Rules
 
-- **`--backend` or `--agent` is REQUIRED** on every call (enforced by hook)
-- **Foreground only** — never append `&`, never set `background: true`
-- **Bash tool timeout**: always set `timeout: 7200000` (2 hours)
-- **HEREDOC for anything non-trivial** — prevents shell quoting issues
+- **Workflow skills do not call `codeagent-wrapper` directly** — use `route_subagent.sh`.
+- **`--backend`, `--agent`, or `--parallel` is REQUIRED** on wrapper args.
+- **Foreground only** — never append `&`, never set `background: true`.
+- **Bash tool timeout**: always set `timeout: 7200000` (2 hours).
+- **HEREDOC for anything non-trivial** — prevents shell quoting issues.
 
-**Invocation pattern for Bash tool:**
-```
-Bash tool parameters:
-- command: codeagent-wrapper --backend <backend> - [working_dir] <<'EOF'
-  <task content>
-  EOF
-- timeout: 7200000
-- description: <brief description>
-```
+### Workflow config for backend preference
 
-### Cross-Platform Notes
-- **Bash/Zsh**: Use `<<'EOF'` (single quotes prevent variable expansion)
-- **PowerShell 5.1+**: Use `@'` and `'@` (here-string syntax)
+Workflow skills can maintain task-type backend hints in their own config and pass resolved hints to this skill. Reference contract:
+
+- `references/workflow-backend-preferences.md`
+
+This skill consumes the resolved hint (`backend` or `agent`) and still owns wrapper invocation policy.
 
 ## Parallel Execution
 
@@ -101,7 +100,7 @@ For multiple independent or dependent tasks, use `--parallel` mode with per-task
 ### Format
 
 ```bash
-codeagent-wrapper --parallel <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --parallel <<'EOF'
 ---TASK---
 id: <unique_task_id>
 backend: <backend>
@@ -117,7 +116,7 @@ EOF
 Each `---TASK---` block can specify its own `backend:` to route different subtasks to different backends:
 
 ```bash
-codeagent-wrapper --parallel <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --parallel <<'EOF'
 ---TASK---
 id: analyze_1732876800
 backend: codex
@@ -149,7 +148,7 @@ EOF
 
 **Correct:**
 ```bash
-codeagent-wrapper --parallel <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --parallel <<'EOF'
 ---TASK---
 id: task1
 backend: codex
@@ -162,12 +161,12 @@ EOF
 **Incorrect (will error):**
 ```bash
 # Bad: no extra args after --parallel
-codeagent-wrapper --parallel - /path/to/dir <<'EOF'
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --parallel - /path/to/dir <<'EOF'
 ...
 EOF
 
 # Bad: --parallel does not take a task argument
-codeagent-wrapper --parallel "task description"
+~/.claude/skills/codeagent/scripts/route_subagent.sh -- --parallel "task description"
 ```
 
 ### Delimiter Format Reference
@@ -246,7 +245,7 @@ Return only the final agent message and session ID — do not paste raw logs int
 
 2. **NEVER fall back to direct execution.** If a backend fails, retry or switch backends — never use Edit/Write tools directly as a substitute.
 
-3. **Every call must specify `--backend`, `--agent`, or `--parallel`.** The PreToolUse hook will deny calls without one of these flags.
+3. **Workflow skills must use `route_subagent.sh` (not direct `codeagent-wrapper`).** Wrapper args must still include one of `--backend`, `--agent`, or `--parallel`.
 
 ## Environment Variables
 
