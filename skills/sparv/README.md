@@ -1,5 +1,7 @@
 # sparv - SPARV Workflow
 
+> Reference-only: This skill is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 Minimal 5-phase workflow: **S**pecify → **P**lan → **A**ct → **R**eview → **V**ault.
 
 Completes "requirements → verifiable delivery" in one pass with external memory.

@@ -1,5 +1,7 @@
 # Development Commands Reference
 
+> Reference-only: This module is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 > Direct slash commands for daily coding tasks without workflow overhead
 
 ## 🎯 Overview

@@ -5,6 +5,8 @@ description: Minimal SPARV workflow (Specify→Plan→Act→Review→Vault) with
 
 # SPARV
 
+> Reference-only: This skill is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 Five-phase workflow: **S**pecify → **P**lan → **A**ct → **R**eview → **V**ault.
 
 Goal: Complete "requirements → verifiable delivery" in one pass, recording key decisions in external memory instead of relying on assumptions.

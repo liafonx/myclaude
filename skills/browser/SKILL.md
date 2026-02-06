@@ -5,6 +5,8 @@ description: This skill should be used for browser automation tasks using Chrome
 
 # Browser Automation
 
+> Reference-only: This skill is retained as a collaboration-routing reference. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 Minimal Chrome DevTools Protocol (CDP) helpers for browser automation without MCP server setup.
 
 ## Setup

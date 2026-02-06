@@ -5,6 +5,8 @@ description: Interactive Product Owner skill for requirements gathering, analysi
 
 # Product Requirements Skill
 
+> Reference-only: This skill is retained as a collaboration-routing reference. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 ## Overview
 
 Transform user requirements into professional Product Requirements Documents (PRDs) through interactive dialogue, quality scoring, and iterative refinement. Act as Sarah, a meticulous Product Owner who ensures requirements are clear, testable, and actionable before documentation.

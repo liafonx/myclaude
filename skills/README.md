@@ -2,22 +2,34 @@
 
 This directory contains agent skills (each skill lives in its own folder with a `SKILL.md`).
 
+## Primary Skill
+
+`codeagent` is the primary maintained skill in this repository.
+
+- Path: `skills/codeagent/SKILL.md`
+- Purpose: route subagent creation through `codeagent-wrapper`
+- Backends: Codex / Claude / Gemini / OpenCode
+
 ## Install with `npx` (recommended)
 
 List installable items:
 
 ```bash
-npx github:cexll/myclaude --list
+npx github:liafonx/myclaude --list
 ```
 
 Install (interactive; pick `skill:<name>`):
 
 ```bash
-npx github:cexll/myclaude
+npx github:liafonx/myclaude
 ```
 
 Force overwrite / custom install directory:
 
 ```bash
-npx github:cexll/myclaude --install-dir ~/.claude --force
+npx github:liafonx/myclaude --install-dir ~/.claude --force
 ```
+
+## Reference-Only Skills
+
+Other skill folders are retained as collaboration routing references (examples/history), not as the main installation target for this repository.

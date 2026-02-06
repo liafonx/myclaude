@@ -1,4 +1,8 @@
 .claude/
+.agent/
+.agents/
+.codex/
+.cursor/
 .claude-trace
 .DS_Store
 **/.DS_Store

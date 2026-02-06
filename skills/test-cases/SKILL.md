@@ -6,6 +6,8 @@ license: MIT
 
 # Test Cases Generator
 
+> Reference-only: This skill is retained as a collaboration-routing reference. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 This skill generates comprehensive, requirement-driven test cases from PRD documents or user requirements.
 
 ## Purpose

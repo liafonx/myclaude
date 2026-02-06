@@ -1,0 +1,26 @@
+# codeagent-wrapper global configuration
+# Docs: skills/codeagent/SKILL.md → User Configuration
+#
+# Config precedence (highest → lowest):
+#   1. CLI flag (--backend, --model)
+#   2. Agent preset (--agent → models.json agents section)
+#   3. This file (config.yaml or CODEAGENT_* env vars)
+#   4. Built-in default (codex, empty model)
+
+# Default backend when no --backend flag is provided
+# Options: codex | claude | gemini | opencode
+backend: codex
+
+# Default model override (empty = use backend's default model)
+model: ""
+
+# Reasoning effort level (empty = use backend's default)
+# Options: low | medium | high
+reasoning_effort: ""
+
+# Claude backend: skip interactive permission checks
+# Only enable for trusted automation workflows
+skip_permissions: false
+
+# Parallel mode output: false = summary only, true = full agent messages
+full_output: false

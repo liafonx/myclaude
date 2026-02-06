@@ -10,7 +10,10 @@ const readline = require("readline");
 const zlib = require("zlib");
 const { spawn } = require("child_process");
 
-const REPO = { owner: "cexll", name: "myclaude" };
+const DEFAULT_REPO = { owner: "liafonx", name: "myclaude" };
+const DEFAULT_WRAPPER_REPO = { owner: "cexll", name: "myclaude" };
+let ACTIVE_REPO = { ...DEFAULT_REPO };
+const PRIMARY_SKILLS = new Set(["codeagent"]);
 const API_HEADERS = {
   "User-Agent": "myclaude-npx",
   Accept: "application/vnd.github+json",
@@ -25,6 +28,7 @@ function parseArgs(argv) {
     list: false,
     update: false,
     tag: null,
+    repo: null,
     module: null,
     yes: false,
   };
@@ -43,6 +47,7 @@ function parseArgs(argv) {
     else if (a === "--list") out.list = true;
     else if (a === "--update") out.update = true;
     else if (a === "--tag") out.tag = argv[++i];
+    else if (a === "--repo") out.repo = argv[++i];
     else if (a === "--module") out.module = argv[++i];
     else if (a === "-y" || a === "--yes") out.yes = true;
     else if (a === "-h" || a === "--help") out.help = true;
@@ -52,18 +57,32 @@ function parseArgs(argv) {
   return out;
 }
 
+function parseRepoSpec(spec) {
+  const raw = String(spec || "").trim();
+  const m = raw.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  if (!m) {
+    throw new Error(`Invalid repo '${raw}'. Expected format: owner/repo`);
+  }
+  return { owner: m[1], name: m[2] };
+}
+
+function repoSpecString(repo) {
+  return `${repo.owner}/${repo.name}`;
+}
+
 function printHelp() {
   process.stdout.write(
     [
       "myclaude (npx installer)",
       "",
       "Usage:",
-      "  npx github:cexll/myclaude",
-      "  npx github:cexll/myclaude --list",
-      "  npx github:cexll/myclaude --update",
-      "  npx github:cexll/myclaude --install-dir ~/.claude --force",
-      "  npx github:cexll/myclaude uninstall",
-      "  npx github:cexll/myclaude uninstall --module bmad,do -y",
+      "  npx github:liafonx/myclaude",
+      "  npx github:liafonx/myclaude --list",
+      "  npx github:liafonx/myclaude --update",
+      "  npx github:liafonx/myclaude --install-dir ~/.claude --force",
+      "  npx github:liafonx/myclaude --repo yourname/myclaude",
+      "  npx github:liafonx/myclaude uninstall",
+      "  npx github:liafonx/myclaude uninstall --module codeagent -y",
       "",
       "Options:",
       "  --install-dir <path>   Default: ~/.claude",
@@ -72,6 +91,7 @@ function printHelp() {
       "  --list                 List installable items and exit",
       "  --update               Update already installed modules",
       "  --tag <tag>            Install a specific GitHub tag",
+      "  --repo <owner/repo>    Override source repo for release fetch/download",
       "  --module <names>       For uninstall: comma-separated module names",
       "  -y, --yes              For uninstall: skip confirmation prompt",
     ].join("\n") + "\n"
@@ -143,7 +163,7 @@ function downloadToFile(url, outPath) {
 }
 
 async function fetchLatestTag() {
-  const url = `https://api.github.com/repos/${REPO.owner}/${REPO.name}/releases/latest`;
+  const url = `https://api.github.com/repos/${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}/releases/latest`;
   const json = await httpsGetJson(url);
   if (!json || typeof json.tag_name !== "string" || !json.tag_name.trim()) {
     throw new Error("GitHub API: missing tag_name");
@@ -152,7 +172,7 @@ async function fetchLatestTag() {
 }
 
 async function fetchRemoteConfig(tag) {
-  const url = `https://api.github.com/repos/${REPO.owner}/${REPO.name}/contents/config.json?ref=${encodeURIComponent(
+  const url = `https://api.github.com/repos/${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}/contents/config.json?ref=${encodeURIComponent(
     tag
   )}`;
   const json = await httpsGetJson(url);
@@ -164,7 +184,7 @@ async function fetchRemoteConfig(tag) {
 }
 
 async function fetchRemoteSkills(tag) {
-  const url = `https://api.github.com/repos/${REPO.owner}/${REPO.name}/contents/skills?ref=${encodeURIComponent(
+  const url = `https://api.github.com/repos/${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}/contents/skills?ref=${encodeURIComponent(
     tag
   )}`;
   const json = await httpsGetJson(url);
@@ -172,6 +192,7 @@ async function fetchRemoteSkills(tag) {
   return json
     .filter((e) => e && e.type === "dir" && typeof e.name === "string")
     .map((e) => e.name)
+    .filter((name) => PRIMARY_SKILLS.has(name))
     .sort();
 }
 
@@ -192,6 +213,7 @@ function listLocalSkills() {
     .readdirSync(skillsDir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
+    .filter((name) => PRIMARY_SKILLS.has(name))
     .sort();
 }
 
@@ -471,10 +493,10 @@ async function updateInstalledModules(installDir, tag, config, dryRun) {
   try {
     if (tag) {
       const archive = path.join(tmp, "src.tgz");
-      const url = `https://codeload.github.com/${REPO.owner}/${REPO.name}/tar.gz/refs/tags/${encodeURIComponent(
+      const url = `https://codeload.github.com/${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}/tar.gz/refs/tags/${encodeURIComponent(
         tag
       )}`;
-      process.stdout.write(`Downloading ${REPO.owner}/${REPO.name}@${tag}...\n`);
+      process.stdout.write(`Downloading ${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}@${tag}...\n`);
       await downloadToFile(url, archive);
       process.stdout.write("Extracting...\n");
       const extracted = path.join(tmp, "src");
@@ -750,12 +772,15 @@ async function mergeDir(src, installDir, force) {
   return installed;
 }
 
-function runInstallSh(repoRoot, installDir, tag) {
+function runInstallSh(repoRoot, installDir) {
   return new Promise((resolve, reject) => {
     const cmd = process.platform === "win32" ? "cmd.exe" : "bash";
     const args = process.platform === "win32" ? ["/c", "install.bat"] : ["install.sh"];
-    const env = { ...process.env, INSTALL_DIR: installDir };
-    if (tag) env.CODEAGENT_WRAPPER_VERSION = tag;
+    const env = {
+      ...process.env,
+      INSTALL_DIR: installDir,
+      CODEAGENT_WRAPPER_REPO: repoSpecString(DEFAULT_WRAPPER_REPO),
+    };
     const p = spawn(cmd, args, {
       cwd: repoRoot,
       stdio: "inherit",
@@ -803,7 +828,7 @@ async function applyModule(moduleName, config, repoRoot, installDir, force, tag)
         if (cmd !== "bash install.sh") {
           throw new Error(`Refusing run_command: ${cmd || "(empty)"}`);
         }
-        await runInstallSh(repoRoot, installDir, tag);
+        await runInstallSh(repoRoot, installDir);
       } else {
         throw new Error(`Unsupported operation type: ${type}`);
       }
@@ -949,17 +974,20 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
   try {
     let repoRoot = repoRootFromHere();
     if (needRepo || needWrapper) {
-      if (!tag) throw new Error("No tag available to download");
-      const archive = path.join(tmp, "src.tgz");
-      const url = `https://codeload.github.com/${REPO.owner}/${REPO.name}/tar.gz/refs/tags/${encodeURIComponent(
-        tag
-      )}`;
-      process.stdout.write(`Downloading ${REPO.owner}/${REPO.name}@${tag}...\n`);
-      await downloadToFile(url, archive);
-      process.stdout.write("Extracting...\n");
-      const extracted = path.join(tmp, "src");
-      await extractTarGz(archive, extracted);
-      repoRoot = extracted;
+      if (tag) {
+        const archive = path.join(tmp, "src.tgz");
+        const url = `https://codeload.github.com/${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}/tar.gz/refs/tags/${encodeURIComponent(
+          tag
+        )}`;
+        process.stdout.write(`Downloading ${ACTIVE_REPO.owner}/${ACTIVE_REPO.name}@${tag}...\n`);
+        await downloadToFile(url, archive);
+        process.stdout.write("Extracting...\n");
+        const extracted = path.join(tmp, "src");
+        await extractTarGz(archive, extracted);
+        repoRoot = extracted;
+      } else {
+        process.stdout.write("Using package contents (no --tag specified).\n");
+      }
     }
 
     await fs.promises.mkdir(installDir, { recursive: true });
@@ -967,7 +995,7 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
     for (const p of picks) {
       if (p.kind === "wrapper") {
         process.stdout.write("Installing codeagent-wrapper...\n");
-        await runInstallSh(repoRoot, installDir, tag);
+        await runInstallSh(repoRoot, installDir);
         continue;
       }
       if (p.kind === "module") {
@@ -992,6 +1020,9 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  ACTIVE_REPO = parseRepoSpec(
+    args.repo || process.env.MYCLAUDE_REPO || repoSpecString(DEFAULT_REPO)
+  );
   if (args.help) {
     printHelp();
     return;
@@ -1070,7 +1101,7 @@ async function main() {
   }
 
   let tag = args.tag;
-  if (!tag) {
+  if (args.update && !tag) {
     try {
       tag = await withTimeout(fetchLatestTag(), 5000, "fetch latest tag");
     } catch {

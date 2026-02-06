@@ -5,6 +5,8 @@ description: Install Claude skills from GitHub repositories with automated secur
 
 # Skill Install
 
+> Reference-only: This skill is retained as a collaboration-routing reference. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 ## Overview
 
 Install Claude skills from GitHub repositories with built-in security scanning to protect against malicious code, backdoors, and vulnerabilities.

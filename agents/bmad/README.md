@@ -1,5 +1,7 @@
 # bmad - BMAD Agile Workflow
 
+> Reference-only: This module is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 Full enterprise agile methodology with 6 specialized agents, UltraThink analysis, and repository-aware development.
 
 ## Installation

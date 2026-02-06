@@ -1,5 +1,7 @@
 # do - Feature Development Orchestrator
 
+> Reference-only: This skill is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 5-phase feature development workflow orchestrating multiple agents via codeagent-wrapper.
 
 ## Installation
