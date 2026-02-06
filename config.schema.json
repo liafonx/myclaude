@@ -50,6 +50,7 @@
         { "$ref": "#/$defs/op_copy_file" },
         { "$ref": "#/$defs/op_merge_dir" },
         { "$ref": "#/$defs/op_merge_json" },
+        { "$ref": "#/$defs/op_install_binary" },
         { "$ref": "#/$defs/op_run_command" }
       ]
     },
@@ -116,6 +117,21 @@
           "type": "object",
           "additionalProperties": { "type": "string" }
         }
+      }
+    },
+    "op_install_binary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "binary", "repo"],
+      "properties": {
+        "type": { "const": "install_binary" },
+        "binary": { "type": "string", "minLength": 1 },
+        "repo": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "description": { "type": "string" }
       }
     }
   }

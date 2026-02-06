@@ -11,8 +11,12 @@ import (
 )
 
 type BackendConfig struct {
-	BaseURL string `json:"base_url,omitempty"`
-	APIKey  string `json:"api_key,omitempty"`
+	BaseURL         string `json:"base_url,omitempty"`
+	APIKey          string `json:"api_key,omitempty"`
+	Model           string `json:"model,omitempty"`
+	Reasoning       string `json:"reasoning,omitempty"`
+	SkipPermissions *bool  `json:"skip_permissions,omitempty"`
+	UseAPI          *bool  `json:"use_api,omitempty"`
 }
 
 type AgentModelConfig struct {
@@ -43,8 +47,8 @@ const modelsConfigExample = `{
   "default_backend": "codex",
   "default_model": "gpt-4.1",
   "backends": {
-    "codex": { "api_key": "..." },
-    "claude": { "api_key": "..." }
+    "codex": { "api_key": "...", "model": "gpt-4.1", "reasoning": "medium", "use_api": false },
+    "claude": { "api_key": "...", "model": "claude-sonnet-4", "reasoning": "medium", "skip_permissions": false, "use_api": false }
   },
   "agents": {
     "develop": {
@@ -161,6 +165,30 @@ func ResolveBackendConfig(backendName string) (baseURL, apiKey string) {
 	}
 	resolved := resolveBackendConfig(cfg, backendName)
 	return strings.TrimSpace(resolved.BaseURL), strings.TrimSpace(resolved.APIKey)
+}
+
+func ResolveBackendRuntimeDefaults(backendName string) (model, reasoning string, skipPermissions *bool) {
+	cfg, err := modelsConfig()
+	if err != nil || cfg == nil {
+		return "", "", nil
+	}
+	resolved := resolveBackendConfig(cfg, backendName)
+	model = strings.TrimSpace(resolved.Model)
+	reasoning = strings.TrimSpace(resolved.Reasoning)
+	return model, reasoning, resolved.SkipPermissions
+}
+
+func ResolveBackendUseAPI(backendName string) *bool {
+	cfg, err := modelsConfig()
+	if err != nil || cfg == nil {
+		return nil
+	}
+	resolved := resolveBackendConfig(cfg, backendName)
+	if resolved.UseAPI == nil {
+		return nil
+	}
+	value := *resolved.UseAPI
+	return &value
 }
 
 func resolveBackendConfig(cfg *ModelsConfig, backendName string) BackendConfig {

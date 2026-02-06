@@ -11,7 +11,7 @@ A **codeagent-first subagent routing toolkit** for Claude Code. It provides:
 
 Other skills in-tree (`do`, `omo`, `sparv`, `browser`, etc.) are **collaboration references** — they should route subagent execution through `skills/codeagent/scripts/route_subagent.sh` and are not the primary install surface of this fork.
 
-**Upstream**: `cexll/myclaude` — this fork (`liafonx/myclaude`) focuses on the codeagent routing skill; `codeagent-wrapper` binary is sourced from upstream releases.
+**Upstream**: `cexll/myclaude` — this fork (`liafonx/myclaude`) focuses on the codeagent routing skill and wrapper source integration; `codeagent-wrapper` binaries are distributed from fork releases.
 
 ## Repository Layout
 
@@ -54,7 +54,7 @@ Other skills in-tree (`do`, `omo`, `sparv`, `browser`, etc.) are **collaboration
    - `copy_dir: skills/codeagent` → `~/.claude/skills/codeagent/`
    - Auto-discovers `hooks/hooks.json` inside the copied dir
    - Merges hook entries into `~/.claude/settings.json` under `hooks.PreToolUse[]`
-   - `run_command: bash install.sh` → downloads `codeagent-wrapper` to `~/.claude/bin/`
+   - `install_binary` → natively downloads `codeagent-wrapper` from configured GitHub releases (`config.json`, default `liafonx/myclaude`) to `~/.claude/bin/`
 3. Records installed modules in `~/.claude/installed_modules.json`
 
 **Key mechanism**: Hooks are NOT manually registered. Both installers automatically scan any `copy_dir` target for `hooks/hooks.json` and merge it into settings.
@@ -68,7 +68,7 @@ Other skills in-tree (`do`, `omo`, `sparv`, `browser`, etc.) are **collaboration
 | `config.json` | Which modules are installable and enabled by default | Changes what `npx` installs |
 | `bin/cli.js` | Installer logic (copy, hooks merge, update, `--repo` flag) | Changes install behavior |
 | `install.py` | Python installer (mirrors cli.js logic) | Must stay in sync with cli.js |
-| `install.sh` | Binary download script | Changes how `codeagent-wrapper` is fetched |
+| `install.sh` | Standalone binary download script (not used by installers) | Manual/fallback only |
 | `codeagent-wrapper/` | Go source for the binary | Changes runtime execution of all backends |
 
 ## Development Conventions
@@ -104,7 +104,8 @@ Reference working examples: `skills/do/hooks/hooks.json`, `skills/sparv/hooks/ho
 Each module in `config.json` has `enabled`, `description`, and `operations[]`:
 - `copy_dir` — copies a skill directory (triggers auto hook merge)
 - `copy_file` — copies a single file
-- `run_command` — runs a shell command
+- `install_binary` — downloads a binary from GitHub releases (native, no shell subprocess)
+- `run_command` — runs a shell command (legacy, kept for backward compat)
 - `merge_dir` — merges into existing dirs (for agents/commands)
 
 ### Installer Parity
@@ -114,6 +115,7 @@ Each module in `config.json` has `enabled`, `description`, and `operations[]`:
 |--------|-----------|---------|
 | `mergeHooksToSettings()` | `merge_hooks_to_settings()` | Merge hooks into settings.json |
 | `mergeModuleHooks()` | `find_module_hooks()` | Discover hooks.json in copy_dir targets |
+| `installWrapperBinary()` | `op_install_binary()` | Download + install binary from GitHub releases |
 | `unmergeHooksFromSettings()` | `unmerge_hooks_from_settings()` | Clean up on uninstall |
 
 ### Wrapper Development
@@ -124,7 +126,7 @@ cd codeagent-wrapper && make test     # runs tests
 cd codeagent-wrapper && make install  # installs to ~/.claude/bin/
 ```
 
-**Do not modify `codeagent-wrapper/` unless working on binary features.** This fork sources the binary from upstream `cexll/myclaude` releases — wrapper changes should be upstreamed.
+**Do not modify `codeagent-wrapper/` unless working on binary features.** This fork ships wrapper binaries from its own releases; keep wrapper source and release artifacts in sync.
 
 ## Collaboration Contract: Workflow ↔ Routing
 
@@ -260,6 +262,18 @@ head -6 skills/codeagent/SKILL.md
 
 # Dry-run install
 npx github:liafonx/myclaude --list
+```
+
+## Releasing Wrapper Assets
+
+Use the helper script to build and publish `codeagent-wrapper` binaries:
+
+```bash
+# Build artifacts in dist/release/<tag>/
+scripts/release_wrapper_assets.sh --tag v1.0.2
+
+# Build + upload to GitHub release
+scripts/release_wrapper_assets.sh --tag v1.0.2 --upload --repo liafonx/myclaude
 ```
 
 ## Files That Are NOT Installed

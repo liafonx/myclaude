@@ -40,5 +40,5 @@ Workflow resolves a preferred backend from this config and passes the hint to co
 
 Workflow backend preference does not define backend runtime internals. Model and backend parameters remain in user-level codeagent config:
 
-- `~/.codeagent/models.json` for agent presets and backend credentials/endpoints.
-- `~/.codeagent/config.yaml` for global defaults (backend/model/reasoning/full_output).
+- `~/.codeagent/models.json` for agent presets and backend defaults (`backends.<name>.model`, `reasoning`, `skip_permissions`, `use_api`) plus credentials/endpoints.
+- `~/.codeagent/config.yaml` for global fallback defaults (`backend`, `model`, `reasoning-effort`, `full-output`).

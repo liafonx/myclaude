@@ -1492,6 +1492,93 @@ func TestBackendParseArgs_SkipPermissions(t *testing.T) {
 	}
 }
 
+func TestBackendParseArgs_UsesBackendRuntimeDefaults(t *testing.T) {
+	defer resetTestHooks()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Cleanup(config.ResetModelsConfigCacheForTest)
+	config.ResetModelsConfigCacheForTest()
+
+	configDir := filepath.Join(home, ".codeagent")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`model: gpt-global
+reasoning-effort: low
+skip-permissions: true
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "models.json"), []byte(`{
+  "backends": {
+    "claude": {
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "skip_permissions": false
+    }
+  },
+  "agents": {}
+}`), 0o644); err != nil {
+		t.Fatalf("WriteFile(models): %v", err)
+	}
+
+	os.Args = []string{"codeagent-wrapper", "--backend", "claude", "task"}
+	cfg, err := parseArgs()
+	if err != nil {
+		t.Fatalf("parseArgs() unexpected error: %v", err)
+	}
+	if cfg.Model != "claude-sonnet-4" {
+		t.Fatalf("Model = %q, want %q", cfg.Model, "claude-sonnet-4")
+	}
+	if cfg.ReasoningEffort != "medium" {
+		t.Fatalf("ReasoningEffort = %q, want %q", cfg.ReasoningEffort, "medium")
+	}
+	if cfg.SkipPermissions {
+		t.Fatalf("SkipPermissions should come from backend defaults (false)")
+	}
+}
+
+func TestBackendParseArgs_AgentReasoningBeatsGlobalFallback(t *testing.T) {
+	defer resetTestHooks()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Cleanup(config.ResetModelsConfigCacheForTest)
+	config.ResetModelsConfigCacheForTest()
+
+	configDir := filepath.Join(home, ".codeagent")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`reasoning-effort: low
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "models.json"), []byte(`{
+  "agents": {
+    "develop": {
+      "backend": "codex",
+      "model": "gpt-4.1",
+      "reasoning": "high"
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("WriteFile(models): %v", err)
+	}
+
+	os.Args = []string{"codeagent-wrapper", "--agent", "develop", "task"}
+	cfg, err := parseArgs()
+	if err != nil {
+		t.Fatalf("parseArgs() unexpected error: %v", err)
+	}
+	if cfg.ReasoningEffort != "high" {
+		t.Fatalf("ReasoningEffort = %q, want %q", cfg.ReasoningEffort, "high")
+	}
+}
+
 func TestBackendParseBoolFlag(t *testing.T) {
 	tests := []struct {
 		name string

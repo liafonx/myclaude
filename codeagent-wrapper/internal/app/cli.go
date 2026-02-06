@@ -299,6 +299,8 @@ func buildSingleConfig(cmd *cobra.Command, args []string, rawArgv []string, opts
 		}
 	}
 
+	backendDefaultModel, backendDefaultReasoning, backendDefaultSkip := config.ResolveBackendRuntimeDefaults(backendName)
+
 	modelFlagChanged := cmd.Flags().Changed("model")
 	if modelFlagChanged {
 		model = strings.TrimSpace(opts.Model)
@@ -312,6 +314,8 @@ func buildSingleConfig(cmd *cobra.Command, args []string, rawArgv []string, opts
 		model = strings.TrimSpace(resolvedModel)
 	case !modelFlagChanged && agentName != "":
 		model = strings.TrimSpace(resolvedModel)
+	case !modelFlagChanged && strings.TrimSpace(backendDefaultModel) != "":
+		model = strings.TrimSpace(backendDefaultModel)
 	case !modelFlagChanged:
 		model = strings.TrimSpace(v.GetString("model"))
 	}
@@ -321,16 +325,20 @@ func buildSingleConfig(cmd *cobra.Command, args []string, rawArgv []string, opts
 		if reasoningEffort == "" {
 			return nil, fmt.Errorf("--reasoning-effort flag requires a value")
 		}
-	} else if val := strings.TrimSpace(v.GetString("reasoning-effort")); val != "" {
-		reasoningEffort = val
 	} else if agentName != "" {
 		reasoningEffort = strings.TrimSpace(resolvedReasoning)
+	} else if strings.TrimSpace(backendDefaultReasoning) != "" {
+		reasoningEffort = strings.TrimSpace(backendDefaultReasoning)
+	} else if val := strings.TrimSpace(v.GetString("reasoning-effort")); val != "" {
+		reasoningEffort = val
 	}
 
 	skipChanged := cmd.Flags().Changed("skip-permissions") || cmd.Flags().Changed("dangerously-skip-permissions")
 	skipPermissions := false
 	if skipChanged {
 		skipPermissions = opts.SkipPermissions
+	} else if backendDefaultSkip != nil {
+		skipPermissions = *backendDefaultSkip
 	} else {
 		skipPermissions = v.GetBool("skip-permissions")
 	}
@@ -435,7 +443,9 @@ func runParallelMode(cmd *cobra.Command, args []string, opts *cliOptions, v *vip
 	}
 
 	model := ""
+	modelExplicit := false
 	if cmd.Flags().Changed("model") {
+		modelExplicit = true
 		model = strings.TrimSpace(opts.Model)
 		if model == "" {
 			fmt.Fprintln(os.Stderr, "ERROR: --model flag requires a value")
@@ -483,8 +493,22 @@ func runParallelMode(cmd *cobra.Command, args []string, opts *cliOptions, v *vip
 		if strings.TrimSpace(cfg.Tasks[i].Backend) == "" {
 			cfg.Tasks[i].Backend = backendName
 		}
-		if strings.TrimSpace(cfg.Tasks[i].Model) == "" && model != "" {
-			cfg.Tasks[i].Model = model
+		taskDefaultModel, taskDefaultReasoning, taskDefaultSkip := config.ResolveBackendRuntimeDefaults(cfg.Tasks[i].Backend)
+		if strings.TrimSpace(cfg.Tasks[i].Model) == "" {
+			switch {
+			case modelExplicit && model != "":
+				cfg.Tasks[i].Model = model
+			case strings.TrimSpace(taskDefaultModel) != "":
+				cfg.Tasks[i].Model = strings.TrimSpace(taskDefaultModel)
+			case model != "":
+				cfg.Tasks[i].Model = model
+			}
+		}
+		if strings.TrimSpace(cfg.Tasks[i].ReasoningEffort) == "" && strings.TrimSpace(taskDefaultReasoning) != "" {
+			cfg.Tasks[i].ReasoningEffort = strings.TrimSpace(taskDefaultReasoning)
+		}
+		if !cfg.Tasks[i].SkipPermissions && taskDefaultSkip != nil {
+			cfg.Tasks[i].SkipPermissions = *taskDefaultSkip
 		}
 		cfg.Tasks[i].SkipPermissions = cfg.Tasks[i].SkipPermissions || skipPermissions
 	}

@@ -51,7 +51,7 @@ func ParseParallelConfig(data []byte) (*ParallelConfig, error) {
 			switch key {
 			case "id":
 				task.ID = value
-			case "workdir":
+			case "workdir", "working_dir":
 				// Validate workdir: "-" is not a valid directory
 				if value == "-" {
 					return nil, fmt.Errorf("task block #%d has invalid workdir: '-' is not a valid directory path", taskIndex)
@@ -64,7 +64,7 @@ func ParseParallelConfig(data []byte) (*ParallelConfig, error) {
 				task.Backend = value
 			case "model":
 				task.Model = value
-			case "reasoning_effort":
+			case "reasoning_effort", "reasoning-effort":
 				task.ReasoningEffort = value
 			case "agent":
 				agentSpecified = true
@@ -99,17 +99,17 @@ func ParseParallelConfig(data []byte) (*ParallelConfig, error) {
 			if strings.TrimSpace(task.Agent) == "" {
 				return nil, fmt.Errorf("task block #%d has empty agent field", taskIndex)
 			}
-				if err := config.ValidateAgentName(task.Agent); err != nil {
-					return nil, fmt.Errorf("task block #%d invalid agent name: %w", taskIndex, err)
-				}
-				backend, model, promptFile, reasoning, _, _, _, allowedTools, disallowedTools, err := config.ResolveAgentConfig(task.Agent)
-				if err != nil {
-					return nil, fmt.Errorf("task block #%d failed to resolve agent %q: %w", taskIndex, task.Agent, err)
-				}
-				if task.Backend == "" {
-					task.Backend = backend
-				}
-				if task.Model == "" {
+			if err := config.ValidateAgentName(task.Agent); err != nil {
+				return nil, fmt.Errorf("task block #%d invalid agent name: %w", taskIndex, err)
+			}
+			backend, model, promptFile, reasoning, _, _, _, allowedTools, disallowedTools, err := config.ResolveAgentConfig(task.Agent)
+			if err != nil {
+				return nil, fmt.Errorf("task block #%d failed to resolve agent %q: %w", taskIndex, task.Agent, err)
+			}
+			if task.Backend == "" {
+				task.Backend = backend
+			}
+			if task.Model == "" {
 				task.Model = model
 			}
 			if task.ReasoningEffort == "" {

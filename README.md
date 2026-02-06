@@ -42,7 +42,8 @@ npx github:liafonx/myclaude --repo <your-owner>/<your-repo>
 `--update` detects already installed modules in the target install dir (defaults to `~/.claude`, via `installed_modules.json` when present) and updates codeagent files from the selected repo.
 
 Default install/list uses the package contents from the exact repo/ref you ran with `npx github:<owner>/<repo>`.
-`codeagent-wrapper` is always downloaded from `cexll/myclaude` releases unless you override `CODEAGENT_WRAPPER_REPO`.
+`codeagent-wrapper` is downloaded from the repo configured in `config.json` (`modules.codeagent.operations[].repo`, default `liafonx/myclaude`).
+You can still override legacy shell install with `CODEAGENT_WRAPPER_REPO`.
 
 ### Module Configuration
 
@@ -63,13 +64,27 @@ Default install/list uses the package contents from the exact repo/ref you ran w
   - `codex`
   - `claude`
   - `gemini`
-  - `opencode` (optional)
+- `opencode` (optional)
 
 Use:
 ```bash
 bash ~/.claude/skills/codeagent/scripts/check_backends.sh
 ```
 to verify local availability.
+
+### Maintainer Release Helper
+
+Build wrapper assets locally:
+
+```bash
+scripts/release_wrapper_assets.sh --tag v1.0.2
+```
+
+Build and upload to GitHub release:
+
+```bash
+scripts/release_wrapper_assets.sh --tag v1.0.2 --upload --repo liafonx/myclaude
+```
 
 ### Configure Default Model and Parameters
 
@@ -78,12 +93,19 @@ to verify local availability.
 - `~/.codeagent/config.yaml` (global defaults)
 - `~/.codeagent/models.json` (agent presets + backend API config)
 
+Installer behavior:
+
+- On install, this repo creates `~/.codeagent/config.yaml` and `~/.codeagent/models.json` from built-in defaults **only if they do not already exist**.
+- Existing user files are never overwritten.
+
 Example `~/.codeagent/config.yaml`:
 
 ```yaml
 backend: codex
 model: gpt-4.1
-reasoning-effort: high
+reasoning-effort: medium
+agent: ""
+prompt-file: ""
 skip-permissions: false
 full-output: false
 ```
@@ -97,27 +119,82 @@ Example `~/.codeagent/models.json`:
   "backends": {
     "codex": {
       "base_url": "https://api.openai.com/v1",
-      "api_key": "YOUR_OPENAI_KEY"
+      "api_key": "YOUR_OPENAI_API_KEY",
+      "model": "gpt-4.1",
+      "reasoning": "medium",
+      "use_api": false
     },
     "claude": {
       "base_url": "https://api.anthropic.com",
-      "api_key": "YOUR_ANTHROPIC_KEY"
+      "api_key": "YOUR_ANTHROPIC_API_KEY",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "skip_permissions": false,
+      "use_api": false
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_KEY"
+      "base_url": "https://generativelanguage.googleapis.com",
+      "api_key": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "opencode": {
+      "base_url": "",
+      "api_key": "",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "use_api": false
     }
   },
   "agents": {
     "develop": {
       "backend": "codex",
       "model": "gpt-4.1",
+      "prompt_file": "~/.codeagent/agents/develop.md",
       "reasoning": "high",
-      "prompt_file": "~/.codeagent/prompts/develop.md"
+      "description": "Code development",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
     },
-    "doc-writer": {
+    "docs-writer": {
       "backend": "claude",
       "model": "claude-sonnet-4",
-      "reasoning": "medium"
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/docs-writer.md",
+      "description": "Documentation and structured writing",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "ui-builder": {
+      "backend": "gemini",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/ui-builder.md",
+      "description": "UI, layout, and accessibility tasks",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "oss-coder": {
+      "backend": "opencode",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/oss-coder.md",
+      "description": "Open-source/local model workflow",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
     }
   }
 }
@@ -127,8 +204,9 @@ Config precedence (high -> low):
 
 1. CLI flags (`--backend`, `--model`, `--reasoning-effort`)
 2. `--agent` preset from `models.json`
-3. `config.yaml` and `CODEAGENT_*` env vars
-4. Built-in defaults
+3. Backend defaults from `models.json` (`backends.<name>.model`, `backends.<name>.reasoning`, `backends.<name>.skip_permissions`)
+4. `config.yaml` and `CODEAGENT_*` env vars (global fallback)
+5. Built-in defaults
 
 Backend parameter notes:
 
@@ -136,6 +214,14 @@ Backend parameter notes:
 - Claude: supports `model`, `skip-permissions`, and backend `base_url`/`api_key`.
 - Gemini: supports `model` and backend `base_url`/`api_key` (also reads `~/.gemini/.env`).
 - OpenCode: supports `model`.
+- `backends.<name>.use_api` controls API env injection vs pure CLI auth:
+  - `false`: ignore `base_url` / `api_key` and use local CLI auth/session.
+  - `true`: inject backend API env vars into CLI process.
+
+Important:
+
+- Backend invocation is CLI-first (`codex`, `claude`, `gemini`, `opencode` binaries on PATH).
+- `base_url` / `api_key` are optional backend CLI environment injections, not a requirement.
 
 ## Core Architecture
 

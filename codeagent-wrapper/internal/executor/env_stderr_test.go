@@ -128,3 +128,88 @@ func TestEnvInjection_LogsToStderrAndMasksKey(t *testing.T) {
 		t.Fatalf("stderr missing masked API key log; stderr=%q", got)
 	}
 }
+
+func TestEnvInjection_DisabledByBackendUseAPIFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".codeagent")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	models := `{
+  "backends": {
+    "claude": {
+      "base_url": "https://api.minimaxi.com/anthropic",
+      "api_key": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test",
+      "use_api": false
+    }
+  },
+  "agents": {
+    "explore": {
+      "backend": "claude",
+      "model": "MiniMax-M2.1",
+      "base_url": "https://api.minimaxi.com/anthropic",
+      "api_key": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test"
+    }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(configDir, "models.json"), []byte(models), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+	config.ResetModelsConfigCacheForTest()
+	defer config.ResetModelsConfigCacheForTest()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStderr := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = oldStderr }()
+
+	readDone := make(chan string, 1)
+	go func() {
+		defer r.Close()
+		b, _ := io.ReadAll(r)
+		readDone <- string(b)
+	}()
+
+	var cmd *fakeCmd
+	restoreRunner := SetNewCommandRunner(func(ctx context.Context, name string, args ...string) CommandRunner {
+		cmd = &fakeCmd{}
+		return cmd
+	})
+	defer restoreRunner()
+
+	_ = RunCodexTaskWithContext(
+		context.Background(),
+		TaskSpec{Task: "hi", WorkDir: ".", Backend: "claude", Agent: "explore"},
+		nil,
+		"claude",
+		nil,
+		nil,
+		false,
+		false,
+		1,
+	)
+
+	_ = w.Close()
+	got := <-readDone
+
+	if cmd == nil {
+		t.Fatalf("expected command to be created")
+	}
+	if cmd.env != nil {
+		if _, ok := cmd.env["ANTHROPIC_BASE_URL"]; ok {
+			t.Fatalf("ANTHROPIC_BASE_URL should not be injected when use_api=false")
+		}
+		if _, ok := cmd.env["ANTHROPIC_API_KEY"]; ok {
+			t.Fatalf("ANTHROPIC_API_KEY should not be injected when use_api=false")
+		}
+	}
+	if !strings.Contains(got, "use_api=false") {
+		t.Fatalf("stderr should mention use_api=false skip, got %q", got)
+	}
+}

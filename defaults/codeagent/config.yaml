@@ -1,0 +1,9 @@
+# Global fallback defaults.
+# Per-backend defaults belong in ~/.codeagent/models.json -> backends.<name>.
+backend: codex
+model: gpt-4.1
+reasoning-effort: medium
+agent: ""
+prompt-file: ""
+skip-permissions: false
+full-output: false

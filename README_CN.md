@@ -49,7 +49,8 @@ npx github:liafonx/myclaude --repo <your-owner>/<your-repo>
 `--update` 会在目标安装目录（默认 `~/.claude`，优先读取 `installed_modules.json`）检测已安装模块，并从你选择的仓库更新 codeagent 内容。
 
 默认安装/列表会使用你运行 `npx github:<owner>/<repo>` 对应的仓库内容。
-`codeagent-wrapper` 默认始终从 `cexll/myclaude` 的 Releases 下载，除非设置 `CODEAGENT_WRAPPER_REPO` 覆盖。
+`codeagent-wrapper` 会从 `config.json` 中配置的仓库下载（`modules.codeagent.operations[].repo`，默认 `liafonx/myclaude`）。
+如需兼容旧 shell 安装方式，仍可通过 `CODEAGENT_WRAPPER_REPO` 覆盖。
 
 ### 模块配置
 
@@ -78,6 +79,20 @@ bash ~/.claude/skills/codeagent/scripts/check_backends.sh
 ```
 进行本机检查。
 
+### 维护者发布辅助脚本
+
+本地构建 wrapper 发行资产：
+
+```bash
+scripts/release_wrapper_assets.sh --tag v1.0.2
+```
+
+构建并上传到 GitHub Release：
+
+```bash
+scripts/release_wrapper_assets.sh --tag v1.0.2 --upload --repo liafonx/myclaude
+```
+
 ### 默认模型与参数配置
 
 `codeagent-wrapper` 会读取以下默认配置：
@@ -85,12 +100,19 @@ bash ~/.claude/skills/codeagent/scripts/check_backends.sh
 - `~/.codeagent/config.yaml`（全局默认）
 - `~/.codeagent/models.json`（agent 预设 + 后端 API 配置）
 
+安装器行为：
+
+- 安装时会从仓库内置模板创建 `~/.codeagent/config.yaml` 与 `~/.codeagent/models.json`（仅当文件不存在时）。
+- 如果你已经有自己的配置文件，安装器不会覆盖。
+
 示例 `~/.codeagent/config.yaml`：
 
 ```yaml
 backend: codex
 model: gpt-4.1
-reasoning-effort: high
+reasoning-effort: medium
+agent: ""
+prompt-file: ""
 skip-permissions: false
 full-output: false
 ```
@@ -104,27 +126,82 @@ full-output: false
   "backends": {
     "codex": {
       "base_url": "https://api.openai.com/v1",
-      "api_key": "YOUR_OPENAI_KEY"
+      "api_key": "YOUR_OPENAI_API_KEY",
+      "model": "gpt-4.1",
+      "reasoning": "medium",
+      "use_api": false
     },
     "claude": {
       "base_url": "https://api.anthropic.com",
-      "api_key": "YOUR_ANTHROPIC_KEY"
+      "api_key": "YOUR_ANTHROPIC_API_KEY",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "skip_permissions": false,
+      "use_api": false
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_KEY"
+      "base_url": "https://generativelanguage.googleapis.com",
+      "api_key": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "opencode": {
+      "base_url": "",
+      "api_key": "",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "use_api": false
     }
   },
   "agents": {
     "develop": {
       "backend": "codex",
       "model": "gpt-4.1",
+      "prompt_file": "~/.codeagent/agents/develop.md",
       "reasoning": "high",
-      "prompt_file": "~/.codeagent/prompts/develop.md"
+      "description": "Code development",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
     },
-    "doc-writer": {
+    "docs-writer": {
       "backend": "claude",
       "model": "claude-sonnet-4",
-      "reasoning": "medium"
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/docs-writer.md",
+      "description": "Documentation and structured writing",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "ui-builder": {
+      "backend": "gemini",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/ui-builder.md",
+      "description": "UI, layout, and accessibility tasks",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "oss-coder": {
+      "backend": "opencode",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/oss-coder.md",
+      "description": "Open-source/local model workflow",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
     }
   }
 }
@@ -134,8 +211,9 @@ full-output: false
 
 1. CLI 参数（`--backend`、`--model`、`--reasoning-effort`）
 2. `models.json` 中 `--agent` 预设
-3. `config.yaml` 与 `CODEAGENT_*` 环境变量
-4. 内置默认值
+3. `models.json` 中后端默认值（`backends.<name>.model`、`backends.<name>.reasoning`、`backends.<name>.skip_permissions`）
+4. `config.yaml` 与 `CODEAGENT_*` 环境变量（全局兜底）
+5. 内置默认值
 
 后端参数说明：
 
@@ -143,6 +221,14 @@ full-output: false
 - Claude：支持 `model`、`skip-permissions`、`base_url`/`api_key`
 - Gemini：支持 `model`、`base_url`/`api_key`（同时会读取 `~/.gemini/.env`）
 - OpenCode：支持 `model`
+- `backends.<name>.use_api` 控制 API 注入模式：
+  - `false`：忽略 `base_url` / `api_key`，走本机 CLI 登录/会话。
+  - `true`：向 CLI 进程注入后端 API 环境变量。
+
+说明：
+
+- 后端调用默认是 CLI 模式（依赖本机 `codex` / `claude` / `gemini` / `opencode` 命令）。
+- `base_url` / `api_key` 只是可选的后端环境注入，不是必填。
 
 ## 后端 CLI 要求
 

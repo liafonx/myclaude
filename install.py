@@ -11,8 +11,11 @@ import argparse
 import json
 import os
 import shutil
+import platform
+import stat
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -807,6 +810,8 @@ def execute_module(name: str, cfg: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[
                     result.setdefault("merge_dir_files", []).extend(merged)
             elif op_type == "merge_json":
                 op_merge_json(op, ctx)
+            elif op_type == "install_binary":
+                op_install_binary(op, ctx)
             elif op_type == "run_command":
                 op_run_command(op, ctx)
             else:
@@ -961,10 +966,159 @@ def op_merge_json(op: Dict[str, Any], ctx: Dict[str, Any]) -> None:
     write_log({"level": "INFO", "message": f"Merged JSON {src} -> {dst} (key: {merge_key or 'root'})"}, ctx)
 
 
+def op_install_binary(op: Dict[str, Any], ctx: Dict[str, Any]) -> None:
+    """Download a binary from GitHub releases and install it natively."""
+    binary_name = op.get("binary", "codeagent-wrapper")
+    repo = op.get("repo", "liafonx/myclaude")
+    install_dir = Path(ctx["install_dir"]).expanduser().resolve()
+
+    # Detect platform
+    plat = sys.platform
+    if plat == "darwin":
+        plat_name = "darwin"
+    elif plat.startswith("linux"):
+        plat_name = "linux"
+    elif plat == "win32":
+        plat_name = "windows"
+    else:
+        raise RuntimeError(f"Unsupported platform: {plat}")
+
+    # Detect architecture
+    machine = platform.machine().lower()
+    if machine in ("x86_64", "amd64"):
+        arch_name = "amd64"
+    elif machine in ("aarch64", "arm64"):
+        arch_name = "arm64"
+    else:
+        raise RuntimeError(f"Unsupported architecture: {machine}")
+
+    ext = ".exe" if plat_name == "windows" else ""
+    asset = f"{binary_name}-{plat_name}-{arch_name}{ext}"
+
+    # Build download URL (use tag from ctx if available, otherwise latest)
+    tag = ctx.get("tag") or "latest"
+    if tag == "latest":
+        url = f"https://github.com/{repo}/releases/latest/download/{asset}"
+    else:
+        url = f"https://github.com/{repo}/releases/download/{tag}/{asset}"
+
+    # Download to temp file first
+    tmp_path = install_dir / f"{binary_name}.tmp"
+    dest_dir = install_dir / "bin"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / (binary_name + ext)
+
+    write_log({"level": "INFO", "message": f"Downloading {asset} from {repo}..."}, ctx)
+    print(f"Downloading {asset} from {repo}...", flush=True)
+
+    try:
+        urllib.request.urlretrieve(url, str(tmp_path))
+    except Exception as exc:
+        tmp_path.unlink(missing_ok=True)
+        raise RuntimeError(f"Failed to download {url}: {exc}") from exc
+
+    # Move to final location
+    shutil.move(str(tmp_path), str(dest_path))
+
+    # Make executable (non-Windows)
+    if plat_name != "windows":
+        dest_path.chmod(dest_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    # Verify
+    try:
+        result = subprocess.run(
+            [str(dest_path), "--version"],
+            capture_output=True, text=True, timeout=10,
+        )
+        version_out = result.stdout.strip() or result.stderr.strip()
+        print(f"Installed {binary_name}: {version_out}", flush=True)
+        write_log({"level": "INFO", "message": f"Installed {binary_name} -> {dest_path} ({version_out})"}, ctx)
+    except Exception as exc:
+        write_log({"level": "WARNING", "message": f"Binary installed but version check failed: {exc}"}, ctx)
+        print(f"Installed {binary_name} (version check skipped)", flush=True)
+
+    _ensure_bin_in_shell_path(dest_dir, ctx)
+    _seed_codeagent_defaults(ctx)
+
+
+def _seed_codeagent_defaults(ctx: Dict[str, Any]) -> None:
+    """Create ~/.codeagent defaults from repo templates if files are missing."""
+    defaults_dir = Path(ctx["config_dir"]) / "defaults" / "codeagent"
+    template_config = defaults_dir / "config.yaml"
+    template_models = defaults_dir / "models.json"
+    if not (template_config.exists() and template_models.exists()):
+        return
+
+    codeagent_dir = Path.home() / ".codeagent"
+    codeagent_dir.mkdir(parents=True, exist_ok=True)
+
+    target_config = codeagent_dir / "config.yaml"
+    target_models = codeagent_dir / "models.json"
+
+    if not target_config.exists():
+        shutil.copy2(template_config, target_config)
+        print(f"Created default {target_config}", flush=True)
+        write_log({"level": "INFO", "message": f"Created default {target_config}"}, ctx)
+
+    if not target_models.exists():
+        shutil.copy2(template_models, target_models)
+        print(f"Created default {target_models}", flush=True)
+        write_log({"level": "INFO", "message": f"Created default {target_models}"}, ctx)
+
+
+def _ensure_bin_in_shell_path(bin_dir: Path, ctx: Dict[str, Any]) -> None:
+    """Ensure install bin dir is available in future shell sessions."""
+    if sys.platform == "win32":
+        return
+
+    bin_dir_str = str(bin_dir)
+    path_entries = os.environ.get("PATH", "").split(os.pathsep) if os.environ.get("PATH") else []
+    if bin_dir_str in path_entries:
+        return
+
+    print(f"\nWARNING: {bin_dir_str} is not in your PATH", flush=True)
+    write_log({"level": "WARNING", "message": f"{bin_dir_str} is not in PATH; updating shell startup files"}, ctx)
+
+    user_shell = Path(os.environ.get("SHELL", "")).name
+    if user_shell == "zsh":
+        rc_file = Path.home() / ".zshrc"
+        profile_file = Path.home() / ".zprofile"
+    else:
+        rc_file = Path.home() / ".bashrc"
+        profile_file = Path.home() / ".profile"
+
+    export_line = f'export PATH="{bin_dir_str}:$PATH"'
+    files_to_update = [rc_file, profile_file]
+
+    for file_path in files_to_update:
+        exists_with_line = False
+        if file_path.exists():
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                if export_line in content:
+                    exists_with_line = True
+            except Exception:
+                exists_with_line = False
+
+        if exists_with_line:
+            print(f"  {bin_dir_str} already in {file_path}, skipping.", flush=True)
+            continue
+
+        print(f"  Adding to {file_path}...", flush=True)
+        with file_path.open("a", encoding="utf-8") as fh:
+            fh.write("\n# Added by myclaude installer\n")
+            fh.write(export_line + "\n")
+
+    print("  Done. Restart your shell or run:", flush=True)
+    print(f"    source {profile_file}", flush=True)
+    print(f"    source {rc_file}\n", flush=True)
+
+
 def op_run_command(op: Dict[str, Any], ctx: Dict[str, Any]) -> None:
     env = os.environ.copy()
     for key, value in op.get("env", {}).items():
         env[key] = value.replace("${install_dir}", str(ctx["install_dir"]))
+    env.setdefault("SKIP_WARNING", "1")
 
     command = op.get("command", "")
     if sys.platform == "win32" and command.strip() == "bash install.sh":

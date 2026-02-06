@@ -262,10 +262,12 @@ Two config files control defaults:
 **`~/.codeagent/config.yaml`** — global defaults:
 ```yaml
 backend: codex          # default backend when no --backend flag
-model: ""               # default model (empty = backend's default)
-reasoning_effort: ""    # low/medium/high
-skip_permissions: false # Claude backend permission checks
-full_output: false      # parallel mode: summary (false) vs full (true)
+model: gpt-4.1          # default model
+reasoning-effort: medium # low/medium/high
+agent: ""               # optional default agent preset
+prompt-file: ""         # optional prompt file override
+skip-permissions: false # Claude backend permission checks
+full-output: false      # parallel mode: summary (false) vs full (true)
 ```
 
 **`~/.codeagent/models.json`** — agent presets and backend API config:
@@ -274,15 +276,84 @@ full_output: false      # parallel mode: summary (false) vs full (true)
   "default_backend": "codex",
   "default_model": "gpt-4.1",
   "backends": {
-    "codex": { "api_key": "..." },
-    "claude": { "api_key": "..." }
+    "codex": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "YOUR_OPENAI_API_KEY",
+      "model": "gpt-4.1",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "claude": {
+      "base_url": "https://api.anthropic.com",
+      "api_key": "YOUR_ANTHROPIC_API_KEY",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "skip_permissions": false,
+      "use_api": false
+    },
+    "gemini": {
+      "base_url": "https://generativelanguage.googleapis.com",
+      "api_key": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "opencode": {
+      "base_url": "",
+      "api_key": "",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "use_api": false
+    }
   },
   "agents": {
     "develop": {
       "backend": "codex",
       "model": "gpt-4.1",
-      "prompt_file": "~/.codeagent/prompts/develop.md",
-      "reasoning": "high"
+      "prompt_file": "~/.codeagent/agents/develop.md",
+      "reasoning": "high",
+      "description": "Code development",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "docs-writer": {
+      "backend": "claude",
+      "model": "claude-sonnet-4",
+      "prompt_file": "~/.codeagent/agents/docs-writer.md",
+      "reasoning": "medium",
+      "description": "Documentation and structured writing",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "ui-builder": {
+      "backend": "gemini",
+      "model": "gemini-2.5-pro",
+      "prompt_file": "~/.codeagent/agents/ui-builder.md",
+      "reasoning": "medium",
+      "description": "UI, layout, and accessibility tasks",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "oss-coder": {
+      "backend": "opencode",
+      "model": "opencode/grok-code",
+      "prompt_file": "~/.codeagent/agents/oss-coder.md",
+      "reasoning": "medium",
+      "description": "Open-source/local model workflow",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
     }
   }
 }
@@ -291,8 +362,13 @@ full_output: false      # parallel mode: summary (false) vs full (true)
 **Config precedence** (highest → lowest):
 1. CLI flag (`--backend`, `--model`)
 2. Agent preset (`--agent` → `models.json` agents section)
-3. Viper config (`config.yaml` or `CODEAGENT_*` env vars)
-4. Built-in default (`codex`, empty model)
+3. Backend defaults (`models.json` `backends.<name>.model` / `reasoning` / `skip_permissions`)
+4. Viper config (`config.yaml` or `CODEAGENT_*` env vars)
+5. Built-in default (`codex`, empty model)
+
+`backends.<name>.use_api` controls API env injection:
+- `false`: ignore backend `base_url`/`api_key` and run backend CLI with local auth/session.
+- `true`: inject backend API environment variables into backend CLI process.
 
 ## Security Best Practices
 

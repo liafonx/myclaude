@@ -1090,6 +1090,7 @@ func RunCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 
 	if envBackend != nil {
 		baseURL, apiKey := config.ResolveBackendConfig(cfg.Backend)
+		useAPI := config.ResolveBackendUseAPI(cfg.Backend)
 		if agentName := strings.TrimSpace(taskSpec.Agent); agentName != "" {
 			agentBackend, _, _, _, agentBaseURL, agentAPIKey, _, _, _, err := config.ResolveAgentConfig(agentName)
 			if err == nil {
@@ -1098,14 +1099,30 @@ func RunCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 				}
 			}
 		}
-		if injected := envBackend.Env(baseURL, apiKey); len(injected) > 0 {
-			cmd.SetEnv(injected)
-			// Log injected env vars with masked API keys (to file and stderr)
-			for k, v := range injected {
-				msg := fmt.Sprintf("Env: %s=%s", k, maskSensitiveValue(k, v))
-				logInfoFn(msg)
-				fmt.Fprintln(os.Stderr, "  "+msg)
+		shouldInject := strings.TrimSpace(baseURL) != "" || strings.TrimSpace(apiKey) != ""
+		if useAPI != nil {
+			shouldInject = *useAPI
+		}
+
+		if shouldInject {
+			if injected := envBackend.Env(baseURL, apiKey); len(injected) > 0 {
+				cmd.SetEnv(injected)
+				// Log injected env vars with masked API keys (to file and stderr)
+				for k, v := range injected {
+					msg := fmt.Sprintf("Env: %s=%s", k, maskSensitiveValue(k, v))
+					logInfoFn(msg)
+					fmt.Fprintln(os.Stderr, "  "+msg)
+				}
 			}
+		} else if useAPI != nil && !*useAPI {
+			logInfoFn(fmt.Sprintf("Env injection disabled for backend %s (use_api=false)", strings.TrimSpace(cfg.Backend)))
+		} else if useAPI != nil && *useAPI && strings.TrimSpace(baseURL) == "" && strings.TrimSpace(apiKey) == "" {
+			logWarnFn(fmt.Sprintf("Backend %s has use_api=true but no base_url/api_key configured", strings.TrimSpace(cfg.Backend)))
+			fmt.Fprintf(os.Stderr, "  WARNING: Backend %s has use_api=true but no base_url/api_key configured\n", strings.TrimSpace(cfg.Backend))
+		}
+		if useAPI != nil && !*useAPI && (strings.TrimSpace(baseURL) != "" || strings.TrimSpace(apiKey) != "") {
+			logInfoFn(fmt.Sprintf("Backend %s has API config but use_api=false; using CLI auth flow", strings.TrimSpace(cfg.Backend)))
+			fmt.Fprintf(os.Stderr, "  Env: API config ignored for backend %s (use_api=false)\n", strings.TrimSpace(cfg.Backend))
 		}
 	}
 

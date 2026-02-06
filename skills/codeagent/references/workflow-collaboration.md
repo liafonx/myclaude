@@ -28,12 +28,12 @@ The PreToolUse hook blocks direct `codeagent-wrapper` commands.
 Workflow passes a resolved routing request with:
 
 - `task`: required subagent task text
-- `working_dir`: required absolute path
+- `working_dir`: required absolute path (`workdir` alias is also accepted)
 - `task_type`: optional classification key (for workflow-side preference map)
 - `backend`: optional explicit backend hint (overrides classification)
 - `agent`: optional preset name (bypasses classification)
 - `model`: optional model override
-- `reasoning_effort`: optional reasoning level
+- `reasoning_effort`: optional reasoning level (`reasoning-effort` alias also accepted in parallel blocks)
 - `parallel`: optional task block payload for `--parallel`
 - `full_output`: optional parallel output mode
 
@@ -55,8 +55,8 @@ Codeagent-wrapper resolves model/backend parameters from:
 
 Use these for preferred model and backend-level credentials/endpoints:
 
-- `~/.codeagent/models.json`: `agents.*.model`, `agents.*.reasoning`, `backends.*.base_url`, `backends.*.api_key`
-- `~/.codeagent/config.yaml`: `backend`, `model`, `reasoning_effort`, `skip_permissions`, `full_output`
+- `~/.codeagent/models.json`: `agents.*.model`, `agents.*.reasoning`, `backends.*.model`, `backends.*.reasoning`, `backends.*.skip_permissions`, `backends.*.use_api`, `backends.*.base_url`, `backends.*.api_key`
+- `~/.codeagent/config.yaml`: `backend`, `model`, `reasoning-effort`, `skip-permissions`, `full-output` (global fallback)
 
 ## Routed Invocation Examples
 

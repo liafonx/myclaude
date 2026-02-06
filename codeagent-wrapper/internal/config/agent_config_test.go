@@ -260,3 +260,58 @@ func TestResolveAgentConfig_EmptyModel_ReturnsError(t *testing.T) {
 		t.Fatalf("error should mention empty model, got: %s", err.Error())
 	}
 }
+
+func TestResolveBackendRuntimeDefaults(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Cleanup(ResetModelsConfigCacheForTest)
+	ResetModelsConfigCacheForTest()
+
+	configDir := filepath.Join(home, ".codeagent")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "models.json"), []byte(`{
+  "default_backend": "codex",
+  "backends": {
+    "codex": { "model": "gpt-4.1", "reasoning": "high", "use_api": false },
+    "Claude": { "model": "claude-sonnet-4", "reasoning": "medium", "skip_permissions": true, "use_api": true }
+  },
+  "agents": {}
+}`), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	model, reasoning, skip := ResolveBackendRuntimeDefaults("claude")
+	if model != "claude-sonnet-4" {
+		t.Fatalf("model = %q, want %q", model, "claude-sonnet-4")
+	}
+	if reasoning != "medium" {
+		t.Fatalf("reasoning = %q, want %q", reasoning, "medium")
+	}
+	if skip == nil || !*skip {
+		t.Fatalf("skip_permissions = %v, want true", skip)
+	}
+
+	model, reasoning, skip = ResolveBackendRuntimeDefaults("")
+	if model != "gpt-4.1" {
+		t.Fatalf("default model = %q, want %q", model, "gpt-4.1")
+	}
+	if reasoning != "high" {
+		t.Fatalf("default reasoning = %q, want %q", reasoning, "high")
+	}
+	if skip != nil {
+		t.Fatalf("default skip_permissions = %v, want nil", *skip)
+	}
+
+	useAPI := ResolveBackendUseAPI("claude")
+	if useAPI == nil || !*useAPI {
+		t.Fatalf("ResolveBackendUseAPI(claude) = %v, want true", useAPI)
+	}
+
+	useAPI = ResolveBackendUseAPI("")
+	if useAPI == nil || *useAPI {
+		t.Fatalf("ResolveBackendUseAPI(default) = %v, want false", useAPI)
+	}
+}

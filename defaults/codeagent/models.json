@@ -1,0 +1,85 @@
+{
+  "default_backend": "codex",
+  "default_model": "gpt-4.1",
+  "backends": {
+    "codex": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "YOUR_OPENAI_API_KEY",
+      "model": "gpt-4.1",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "claude": {
+      "base_url": "https://api.anthropic.com",
+      "api_key": "YOUR_ANTHROPIC_API_KEY",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "skip_permissions": false,
+      "use_api": false
+    },
+    "gemini": {
+      "base_url": "https://generativelanguage.googleapis.com",
+      "api_key": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "use_api": false
+    },
+    "opencode": {
+      "base_url": "",
+      "api_key": "",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "use_api": false
+    }
+  },
+  "agents": {
+    "develop": {
+      "backend": "codex",
+      "model": "gpt-4.1",
+      "prompt_file": "~/.codeagent/agents/develop.md",
+      "reasoning": "high",
+      "description": "Code development",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "docs-writer": {
+      "backend": "claude",
+      "model": "claude-sonnet-4",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/docs-writer.md",
+      "description": "Documentation and structured writing",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "ui-builder": {
+      "backend": "gemini",
+      "model": "gemini-2.5-pro",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/ui-builder.md",
+      "description": "UI, layout, and accessibility tasks",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    },
+    "oss-coder": {
+      "backend": "opencode",
+      "model": "opencode/grok-code",
+      "reasoning": "medium",
+      "prompt_file": "~/.codeagent/agents/oss-coder.md",
+      "description": "Open-source/local model workflow",
+      "yolo": false,
+      "base_url": "",
+      "api_key": "",
+      "allowed_tools": [],
+      "disallowed_tools": []
+    }
+  }
+}

@@ -14,12 +14,10 @@
           "description": "Install codeagent skill with hooks, scripts, and templates"
         },
         {
-          "type": "run_command",
-          "command": "bash install.sh",
-          "description": "Install codeagent-wrapper binary",
-          "env": {
-            "INSTALL_DIR": "${install_dir}"
-          }
+          "type": "install_binary",
+          "binary": "codeagent-wrapper",
+          "repo": "liafonx/myclaude",
+          "description": "Download codeagent-wrapper binary from fork releases"
         }
       ]
     }

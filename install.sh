@@ -1,16 +1,6 @@
 #!/bin/bash
 set -e
 
-if [ -z "${SKIP_WARNING:-}" ]; then
-  echo "⚠️  WARNING: install.sh is LEGACY and will be removed in future versions."
-  echo "Please use the new installation method:"
-  echo "  npx github:cexll/myclaude"
-  echo ""
-  echo "Set SKIP_WARNING=1 to bypass this message"
-  echo "Continuing with legacy installation in 5 seconds..."
-  sleep 5
-fi
-
 # Detect platform
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -23,7 +13,7 @@ case "$ARCH" in
 esac
 
 # Build download URL
-REPO="${CODEAGENT_WRAPPER_REPO:-cexll/myclaude}"
+REPO="${CODEAGENT_WRAPPER_REPO:-liafonx/myclaude}"
 VERSION="${CODEAGENT_WRAPPER_VERSION:-latest}"
 BINARY_NAME="codeagent-wrapper-${OS}-${ARCH}"
 if [ "$VERSION" = "latest" ]; then

@@ -11,7 +11,7 @@ const zlib = require("zlib");
 const { spawn } = require("child_process");
 
 const DEFAULT_REPO = { owner: "liafonx", name: "myclaude" };
-const DEFAULT_WRAPPER_REPO = { owner: "cexll", name: "myclaude" };
+const DEFAULT_WRAPPER_REPO = { ...DEFAULT_REPO };
 let ACTIVE_REPO = { ...DEFAULT_REPO };
 const PRIMARY_SKILLS = new Set(["codeagent"]);
 const API_HEADERS = {
@@ -561,7 +561,9 @@ async function updateInstalledModules(installDir, tag, config, dryRun) {
       const moduleVersion = readModuleVersion(mods[name], repoRoot);
       const vLabel = moduleVersion ? ` (v${moduleVersion})` : "";
       process.stdout.write(`Updating module: ${name}${vLabel}\n`);
-      const r = await applyModule(name, config, repoRoot, installDir, true, tag);
+      const r = await applyModule(name, config, repoRoot, installDir, true, tag, {
+        skipWrapperRunCommand: false,
+      });
       upsertModuleStatus(installDir, r);
     }
   } finally {
@@ -810,6 +812,127 @@ async function mergeDir(src, installDir, force) {
   return installed;
 }
 
+async function seedCodeagentDefaults(repoRoot) {
+  const home = os.homedir();
+  const codeagentDir = path.join(home, ".codeagent");
+  const defaultsDir = path.join(repoRoot, "defaults", "codeagent");
+  const templateConfig = path.join(defaultsDir, "config.yaml");
+  const templateModels = path.join(defaultsDir, "models.json");
+  const targetConfig = path.join(codeagentDir, "config.yaml");
+  const targetModels = path.join(codeagentDir, "models.json");
+
+  if (!fs.existsSync(templateConfig) || !fs.existsSync(templateModels)) return;
+
+  await fs.promises.mkdir(codeagentDir, { recursive: true });
+
+  if (!fs.existsSync(targetConfig)) {
+    await fs.promises.copyFile(templateConfig, targetConfig);
+    process.stdout.write(`  Created default ${targetConfig}\n`);
+  }
+  if (!fs.existsSync(targetModels)) {
+    await fs.promises.copyFile(templateModels, targetModels);
+    process.stdout.write(`  Created default ${targetModels}\n`);
+  }
+}
+
+function wrapperPlatformInfo() {
+  const platformMap = { darwin: "darwin", linux: "linux", win32: "windows" };
+  const archMap = { x64: "amd64", arm64: "arm64" };
+  const plat = platformMap[os.platform()];
+  const arch = archMap[os.arch()];
+  if (!plat) throw new Error(`Unsupported platform: ${os.platform()}`);
+  if (!arch) throw new Error(`Unsupported architecture: ${os.arch()}`);
+  return { plat, arch, ext: plat === "windows" ? ".exe" : "" };
+}
+
+async function ensureBinDirInShellPath(binDir) {
+  if (process.platform === "win32") return;
+
+  const pathEntries = String(process.env.PATH || "")
+    .split(path.delimiter)
+    .filter(Boolean);
+  if (pathEntries.includes(binDir)) return;
+
+  process.stdout.write(`\nWARNING: ${binDir} is not in your PATH\n`);
+
+  const userShell = path.basename(process.env.SHELL || "");
+  const rcFile =
+    userShell === "zsh"
+      ? path.join(os.homedir(), ".zshrc")
+      : path.join(os.homedir(), ".bashrc");
+  const profileFile =
+    userShell === "zsh"
+      ? path.join(os.homedir(), ".zprofile")
+      : path.join(os.homedir(), ".profile");
+
+  const exportLine = `export PATH="${binDir}:$PATH"`;
+  const filesToUpdate = [rcFile, profileFile];
+
+  for (const file of filesToUpdate) {
+    let content = "";
+    try {
+      content = await fs.promises.readFile(file, "utf8");
+    } catch (err) {
+      if (!err || err.code !== "ENOENT") throw err;
+    }
+
+    if (content.includes(exportLine)) {
+      process.stdout.write(`  ${binDir} already in ${file}, skipping.\n`);
+      continue;
+    }
+
+    process.stdout.write(`  Adding to ${file}...\n`);
+    await fs.promises.appendFile(
+      file,
+      `\n# Added by myclaude installer\n${exportLine}\n`,
+      "utf8"
+    );
+  }
+
+  process.stdout.write("  Done. Restart your shell or run:\n");
+  process.stdout.write(`    source ${profileFile}\n`);
+  process.stdout.write(`    source ${rcFile}\n\n`);
+}
+
+async function installWrapperBinary(installDir, repo, tag) {
+  const { plat, arch, ext } = wrapperPlatformInfo();
+  const binaryName = `codeagent-wrapper-${plat}-${arch}${ext}`;
+  const version = tag || "latest";
+  const url =
+    version === "latest"
+      ? `https://github.com/${repo}/releases/latest/download/${binaryName}`
+      : `https://github.com/${repo}/releases/download/${version}/${binaryName}`;
+
+  const binDir = path.join(installDir, "bin");
+  await fs.promises.mkdir(binDir, { recursive: true });
+
+  const tmpPath = path.join(os.tmpdir(), `codeagent-wrapper-${Date.now()}${ext}`);
+  process.stdout.write(`  Downloading ${binaryName} from ${repo}@${version}...\n`);
+  try {
+    await downloadToFile(url, tmpPath);
+  } catch (err) {
+    throw new Error(`Failed to download wrapper binary: ${err.message}`);
+  }
+
+  const destPath = path.join(binDir, `codeagent-wrapper${ext}`);
+  await fs.promises.copyFile(tmpPath, destPath);
+  await fs.promises.unlink(tmpPath).catch(() => {});
+  if (process.platform !== "win32") {
+    await fs.promises.chmod(destPath, 0o755);
+  }
+
+  // Verify
+  const ok = await new Promise((resolve) => {
+    const p = spawn(destPath, ["--version"], { stdio: "ignore" });
+    p.on("exit", (code) => resolve(code === 0));
+    p.on("error", () => resolve(false));
+  });
+  if (!ok) throw new Error("codeagent-wrapper --version verification failed");
+  process.stdout.write(`  Installed codeagent-wrapper to ${destPath}\n`);
+  await ensureBinDirInShellPath(binDir);
+}
+
+// Legacy: kept for standalone install.sh invocations only
 function runInstallSh(repoRoot, installDir) {
   return new Promise((resolve, reject) => {
     const cmd = process.platform === "win32" ? "cmd.exe" : "bash";
@@ -818,6 +941,7 @@ function runInstallSh(repoRoot, installDir) {
       ...process.env,
       INSTALL_DIR: installDir,
       CODEAGENT_WRAPPER_REPO: repoSpecString(DEFAULT_WRAPPER_REPO),
+      SKIP_WARNING: "1",
     };
     const p = spawn(cmd, args, {
       cwd: repoRoot,
@@ -831,6 +955,19 @@ function runInstallSh(repoRoot, installDir) {
   });
 }
 
+function resolveWrapperRepoFromConfig(config) {
+  const modules = (config && config.modules) || {};
+  for (const mod of Object.values(modules)) {
+    const ops = Array.isArray(mod && mod.operations) ? mod.operations : [];
+    for (const op of ops) {
+      if (!op || op.type !== "install_binary") continue;
+      if (op.binary !== "codeagent-wrapper") continue;
+      if (typeof op.repo === "string" && op.repo.trim()) return op.repo.trim();
+    }
+  }
+  return repoSpecString(DEFAULT_WRAPPER_REPO);
+}
+
 async function rmTree(p) {
   if (!fs.existsSync(p)) return;
   if (fs.promises.rm) {
@@ -840,7 +977,7 @@ async function rmTree(p) {
   await fs.promises.rmdir(p, { recursive: true });
 }
 
-async function applyModule(moduleName, config, repoRoot, installDir, force, tag) {
+async function applyModule(moduleName, config, repoRoot, installDir, force, tag, options = {}) {
   const mod = config && config.modules && config.modules[moduleName];
   if (!mod) throw new Error(`Unknown module: ${moduleName}`);
   const moduleVersion = readModuleVersion(mod, repoRoot);
@@ -863,12 +1000,26 @@ async function applyModule(moduleName, config, repoRoot, installDir, force, tag)
         await copyDirRecursive(path.join(repoRoot, op.source), path.join(installDir, op.target), force);
       } else if (type === "merge_dir") {
         mergeDirFiles.push(...(await mergeDir(path.join(repoRoot, op.source), installDir, force)));
+      } else if (type === "install_binary") {
+        if (options.skipWrapperRunCommand) {
+          result.operations.push({ type, status: "skipped", reason: "wrapper_already_installed" });
+          continue;
+        }
+        const binaryRepo = (op.repo && typeof op.repo === "string") ? op.repo : repoSpecString(DEFAULT_WRAPPER_REPO);
+        await installWrapperBinary(installDir, binaryRepo, tag);
+        await seedCodeagentDefaults(repoRoot);
       } else if (type === "run_command") {
+        // Legacy: kept for backward compat with old config.json
         const cmd = typeof op.command === "string" ? op.command.trim() : "";
         if (cmd !== "bash install.sh") {
           throw new Error(`Refusing run_command: ${cmd || "(empty)"}`);
         }
+        if (options.skipWrapperRunCommand) {
+          result.operations.push({ type, status: "skipped", reason: "wrapper_already_installed" });
+          continue;
+        }
         await runInstallSh(repoRoot, installDir);
+        await seedCodeagentDefaults(repoRoot);
       } else {
         throw new Error(`Unsupported operation type: ${type}`);
       }
@@ -1032,10 +1183,13 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
 
     await fs.promises.mkdir(installDir, { recursive: true });
 
+    const wrapperPicked = picks.some((x) => x.kind === "wrapper");
+    const wrapperRepo = resolveWrapperRepoFromConfig(config);
     for (const p of picks) {
       if (p.kind === "wrapper") {
         process.stdout.write("Installing codeagent-wrapper...\n");
-        await runInstallSh(repoRoot, installDir);
+        await installWrapperBinary(installDir, wrapperRepo, tag);
+        await seedCodeagentDefaults(repoRoot);
         continue;
       }
       if (p.kind === "module") {
@@ -1043,7 +1197,9 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
         const moduleVersion = readModuleVersion(moduleDef, repoRoot);
         const vLabel = moduleVersion ? ` (v${moduleVersion})` : "";
         process.stdout.write(`Installing module: ${p.moduleName}${vLabel}\n`);
-        const r = await applyModule(p.moduleName, config, repoRoot, installDir, force, tag);
+        const r = await applyModule(p.moduleName, config, repoRoot, installDir, force, tag, {
+          skipWrapperRunCommand: wrapperPicked,
+        });
         upsertModuleStatus(installDir, r);
         continue;
       }
