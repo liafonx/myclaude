@@ -1,5 +1,7 @@
 # Requirements-Driven Workflow Guide
 
+> Reference-only: This module is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 > Lightweight alternative to BMAD for rapid prototyping and simple feature development
 
 ## 🎯 What is Requirements Workflow?

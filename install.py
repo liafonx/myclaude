@@ -757,6 +757,32 @@ def ensure_install_dir(path: Path) -> None:
         raise PermissionError(f"No write permission for install dir: {path}")
 
 
+def read_module_version(cfg: Dict[str, Any], ctx: Dict[str, Any]) -> Optional[str]:
+    """Read module version from <copy_dir source>/SKILL.md frontmatter."""
+    for op in cfg.get("operations", []):
+        if op.get("type") != "copy_dir":
+            continue
+        source = op.get("source")
+        if not source:
+            continue
+        skill_file = (ctx["config_dir"] / source / "SKILL.md").expanduser().resolve()
+        if not skill_file.exists():
+            continue
+        try:
+            lines = skill_file.read_text(encoding="utf-8").splitlines()
+            if not lines or lines[0].strip() != "---":
+                continue
+            for line in lines[1:]:
+                if line.strip() == "---":
+                    break
+                if line.lower().startswith("version:"):
+                    value = line.split(":", 1)[1].strip()
+                    return value or None
+        except Exception:
+            return None
+    return None
+
+
 def execute_module(name: str, cfg: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "module": name,
@@ -764,6 +790,9 @@ def execute_module(name: str, cfg: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[
         "operations": [],
         "installed_at": datetime.now().isoformat(),
     }
+    module_version = read_module_version(cfg, ctx)
+    if module_version:
+        result["version"] = module_version
 
     for op in cfg.get("operations", []):
         op_type = op.get("type")
@@ -1168,7 +1197,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
         results: List[Dict[str, Any]] = []
         for idx, (name, cfg) in enumerate(modules.items(), 1):
-            print(f"[{idx}/{total}] Updating module: {name}...")
+            module_version = read_module_version(cfg, ctx)
+            v_label = f" (v{module_version})" if module_version else ""
+            print(f"[{idx}/{total}] Updating module: {name}{v_label}...")
             try:
                 results.append(execute_module(name, cfg, ctx))
                 print(f"  ✓ {name} updated successfully")
@@ -1230,7 +1261,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     results: List[Dict[str, Any]] = []
     for idx, (name, cfg) in enumerate(modules.items(), 1):
-        print(f"[{idx}/{total}] Installing module: {name}...")
+        module_version = read_module_version(cfg, ctx)
+        v_label = f" (v{module_version})" if module_version else ""
+        print(f"[{idx}/{total}] Installing module: {name}{v_label}...")
         try:
             results.append(execute_module(name, cfg, ctx))
             print(f"  ✓ {name} installed successfully")

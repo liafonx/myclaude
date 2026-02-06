@@ -1,5 +1,7 @@
 # BMAD Workflow Complete Guide
 
+> Reference-only: This module is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 > **BMAD (Business-Minded Agile Development)** - AI-driven agile development automation with role-based agents
 
 ## 🎯 What is BMAD?

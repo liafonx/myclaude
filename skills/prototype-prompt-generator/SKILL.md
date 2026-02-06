@@ -5,6 +5,8 @@ description: This skill should be used when users need to generate detailed, str
 
 # Prototype Prompt Generator
 
+> Reference-only: This skill is retained as a collaboration-routing reference. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 ## Overview
 
 Generate comprehensive, production-ready prompts for UI/UX prototype creation. Transform user requirements into detailed technical specifications that include design systems, color palettes, component specifications, layout structures, and implementation guidelines. Output prompts are structured for optimal consumption by AI tools or human developers building HTML/CSS/React prototypes.

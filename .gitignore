@@ -1,4 +1,8 @@
 .claude/
+.agent/
+.agents/
+.codex/
+.cursor/
 .claude-trace
 .DS_Store
 **/.DS_Store
@@ -7,6 +11,6 @@
 __pycache__
 .coverage
 coverage.out
-references
+/references
 output/
 .worktrees/

@@ -2,43 +2,50 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "myclaude",
   "version": "5.6.1",
-  "description": "Professional multi-agent development workflows with OmO orchestration, Requirements-Driven and BMAD methodologies",
+  "description": "Codeagent-first subagent routing toolkit with codeagent-wrapper multi-backend execution",
   "owner": {
     "name": "cexll",
     "email": "evanxian9@gmail.com"
   },
   "plugins": [
     {
+      "name": "codeagent",
+      "description": "Primary routing skill for subagent backend selection and invocation through codeagent-wrapper",
+      "version": "5.6.1",
+      "source": "./skills/codeagent",
+      "category": "development"
+    },
+    {
       "name": "omo",
-      "description": "Multi-agent orchestration for code analysis, bug investigation, fix planning, and implementation with intelligent routing to specialized agents",
+      "description": "Legacy reference plugin for orchestration patterns",
       "version": "5.6.1",
       "source": "./skills/omo",
       "category": "development"
     },
     {
       "name": "requirements",
-      "description": "Requirements-driven development workflow with quality gates for practical feature implementation",
+      "description": "Legacy reference plugin for requirements workflow patterns",
       "version": "5.6.1",
       "source": "./agents/requirements",
       "category": "development"
     },
     {
       "name": "bmad",
-      "description": "Full BMAD agile workflow with role-based agents (PO, Architect, SM, Dev, QA) and interactive approval gates",
+      "description": "Legacy reference plugin for BMAD methodology",
       "version": "5.6.1",
       "source": "./agents/bmad",
       "category": "development"
     },
     {
       "name": "dev-kit",
-      "description": "Essential development commands for coding, debugging, testing, optimization, and documentation",
+      "description": "Legacy reference plugin for command patterns",
       "version": "5.6.1",
       "source": "./agents/development-essentials",
       "category": "productivity"
     },
     {
       "name": "sparv",
-      "description": "Minimal SPARV workflow (Specify→Plan→Act→Review→Vault) with 10-point spec gate, unified journal, 2-action saves, 3-failure protocol, and EHRB risk detection",
+      "description": "Legacy reference plugin for SPARV workflow patterns",
       "version": "1.1.0",
       "source": "./skills/sparv",
       "category": "development"

@@ -1,0 +1,25 @@
+{
+  "upstream_repo": "cexll/myclaude",
+  "upstream_branch": "master",
+  "base_branch": "master",
+  "sync_branch_prefix": "sync/upstream-v",
+  "sync_paths": [
+    "codeagent-wrapper"
+  ],
+  "signal_paths": [
+    "skills/codeagent",
+    "skills/codex",
+    "skills/gemini"
+  ],
+  "protected_paths": [
+    "bin/cli.js",
+    "install.sh",
+    "install.bat",
+    "config.json",
+    "README.md",
+    "README_CN.md",
+    "agent.md"
+  ],
+  "status_file": "sync/status/upstream-sync-status.json",
+  "report_file": "sync/status/upstream-sync-report.md"
+}

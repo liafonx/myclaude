@@ -2,7 +2,7 @@
   "name": "myclaude",
   "version": "0.0.0",
   "private": true,
-  "description": "Claude Code multi-agent workflows (npx installer)",
+  "description": "Codeagent-first subagent routing toolkit (npx installer)",
   "license": "AGPL-3.0",
   "bin": {
     "myclaude": "bin/cli.js"

@@ -6,6 +6,8 @@ allowed-tools: ["Bash(${SKILL_DIR}/scripts/setup-do.py:*)"]
 
 # do - Feature Development Orchestrator
 
+> Reference-only: This skill is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 An orchestrator for systematic feature development. Invoke agents via `codeagent-wrapper`, never write code directly.
 
 ## Loop Initialization (REQUIRED)

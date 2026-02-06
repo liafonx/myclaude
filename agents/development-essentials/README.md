@@ -1,5 +1,7 @@
 # Development Essentials - Core Development Commands
 
+> Reference-only: This module is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 核心开发命令套件，提供日常开发所需的所有基础命令。无需工作流开销，直接执行开发任务。
 
 ## 📋 命令列表

@@ -1,26 +1,5 @@
 {
   "skills": {
-    "codex": {
-      "type": "execution",
-      "enforcement": "suggest",
-      "priority": "high",
-      "promptTriggers": {
-        "keywords": [
-          "refactor",
-          "implement",
-          "code change",
-          "bug fix",
-          "生成代码",
-          "重构",
-          "修复"
-        ],
-        "intentPatterns": [
-          "(refactor|rewrite|optimi[sz]e)\\b",
-          "(implement|build|write).*(feature|function|module|code)",
-          "(fix|debug).*(bug|error|issue)"
-        ]
-      }
-    },
     "codeagent": {
       "type": "execution",
       "enforcement": "suggest",
@@ -28,19 +7,35 @@
       "promptTriggers": {
         "keywords": [
           "codeagent",
+          "subagent",
           "multi-backend",
           "backend selection",
+          "backend routing",
           "parallel task",
+          "delegate",
+          "refactor",
+          "implement",
+          "code change",
+          "bug fix",
+          "gemini",
+          "claude backend",
+          "opencode",
           "多后端",
           "并行任务",
-          "gemini",
-          "claude backend"
+          "生成代码",
+          "重构",
+          "修复"
         ],
         "intentPatterns": [
           "\\bcodeagent\\b",
-          "backend\\s+(codex|claude|gemini)",
+          "\\bsubagent\\b",
+          "backend\\s+(codex|claude|gemini|opencode)",
           "parallel.*task",
-          "multi.*backend"
+          "multi.*backend",
+          "(refactor|rewrite|optimi[sz]e)\\b",
+          "(implement|build|write).*(feature|function|module|code)",
+          "(fix|debug).*(bug|error|issue)",
+          "delegate.*(task|work)"
         ]
       }
     },
@@ -109,6 +104,28 @@
           "(mobile|web).*app.*(design|prototype)",
           "prototype.*prompt",
           "design.*system"
+        ]
+      }
+    },
+    "upstream-sync": {
+      "type": "maintenance",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "update upstream",
+          "sync upstream",
+          "upstream release",
+          "upstream update",
+          "release sync",
+          "sync codeagent-wrapper",
+          "sync codeagent",
+          "maintainer update"
+        ],
+        "intentPatterns": [
+          "(update|sync).*(upstream|release)",
+          "upstream.*(drift|diff|status)",
+          "sync.*(codeagent-wrapper|codeagent)"
         ]
       }
     }

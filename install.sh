@@ -23,7 +23,7 @@ case "$ARCH" in
 esac
 
 # Build download URL
-REPO="cexll/myclaude"
+REPO="${CODEAGENT_WRAPPER_REPO:-cexll/myclaude}"
 VERSION="${CODEAGENT_WRAPPER_VERSION:-latest}"
 BINARY_NAME="codeagent-wrapper-${OS}-${ARCH}"
 if [ "$VERSION" = "latest" ]; then

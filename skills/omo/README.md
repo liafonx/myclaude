@@ -1,5 +1,7 @@
 # omo - Multi-Agent Orchestration
 
+> Reference-only: This skill is retained for collaboration-routing examples. The primary maintained path in this repo is `skills/codeagent` + `codeagent-wrapper`.
+
 OmO is a multi-agent orchestration skill that routes tasks to specialized agents based on risk signals.
 
 ## Installation
