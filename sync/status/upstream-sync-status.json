@@ -1,0 +1,14 @@
+{
+  "checked_at": null,
+  "upstream_repo": "cexll/myclaude",
+  "latest_tag": null,
+  "upstream_sha": null,
+  "last_applied_tag": null,
+  "last_applied_sha": null,
+  "sync_paths_changed": [],
+  "signal_paths_changed": [],
+  "applied": false,
+  "applied_branch": null,
+  "applied_commit": null,
+  "result": "clean"
+}

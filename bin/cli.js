@@ -217,6 +217,42 @@ function listLocalSkills() {
     .sort();
 }
 
+function normalizeVersion(v) {
+  const s = String(v || "").trim();
+  if (!s) return null;
+  return s;
+}
+
+function readSkillVersionFromSkillMd(skillDir) {
+  const p = path.join(skillDir, "SKILL.md");
+  if (!fs.existsSync(p)) return null;
+  try {
+    const text = fs.readFileSync(p, "utf8");
+    const lines = text.split(/\r?\n/);
+    if (!lines.length || lines[0].trim() !== "---") return null;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim() === "---") break;
+      const m = line.match(/^\s*version\s*:\s*(.+?)\s*$/i);
+      if (m) return normalizeVersion(m[1]);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function readModuleVersion(mod, repoRoot) {
+  const ops = Array.isArray(mod && mod.operations) ? mod.operations : [];
+  for (const op of ops) {
+    if (!op || op.type !== "copy_dir") continue;
+    if (typeof op.source !== "string" || !op.source) continue;
+    const version = readSkillVersionFromSkillMd(path.join(repoRoot, op.source));
+    if (version) return version;
+  }
+  return null;
+}
+
 function expandHome(p) {
   if (!p) return p;
   if (p === "~") return os.homedir();
@@ -522,7 +558,9 @@ async function updateInstalledModules(installDir, tag, config, dryRun) {
 
     await fs.promises.mkdir(installDir, { recursive: true });
     for (const name of toUpdate) {
-      process.stdout.write(`Updating module: ${name}\n`);
+      const moduleVersion = readModuleVersion(mods[name], repoRoot);
+      const vLabel = moduleVersion ? ` (v${moduleVersion})` : "";
+      process.stdout.write(`Updating module: ${name}${vLabel}\n`);
       const r = await applyModule(name, config, repoRoot, installDir, true, tag);
       upsertModuleStatus(installDir, r);
     }
@@ -805,6 +843,7 @@ async function rmTree(p) {
 async function applyModule(moduleName, config, repoRoot, installDir, force, tag) {
   const mod = config && config.modules && config.modules[moduleName];
   if (!mod) throw new Error(`Unknown module: ${moduleName}`);
+  const moduleVersion = readModuleVersion(mod, repoRoot);
   const ops = Array.isArray(mod.operations) ? mod.operations : [];
   const result = {
     module: moduleName,
@@ -812,6 +851,7 @@ async function applyModule(moduleName, config, repoRoot, installDir, force, tag)
     operations: [],
     installed_at: new Date().toISOString(),
   };
+  if (moduleVersion) result.version = moduleVersion;
   const mergeDirFiles = [];
 
   for (const op of ops) {
@@ -999,13 +1039,20 @@ async function installSelected(picks, tag, config, installDir, force, dryRun) {
         continue;
       }
       if (p.kind === "module") {
-        process.stdout.write(`Installing module: ${p.moduleName}\n`);
+        const moduleDef = config && config.modules && config.modules[p.moduleName];
+        const moduleVersion = readModuleVersion(moduleDef, repoRoot);
+        const vLabel = moduleVersion ? ` (v${moduleVersion})` : "";
+        process.stdout.write(`Installing module: ${p.moduleName}${vLabel}\n`);
         const r = await applyModule(p.moduleName, config, repoRoot, installDir, force, tag);
         upsertModuleStatus(installDir, r);
         continue;
       }
       if (p.kind === "skill") {
-        process.stdout.write(`Installing skill: ${p.skillName}\n`);
+        const skillVersion = readSkillVersionFromSkillMd(
+          path.join(repoRoot, "skills", p.skillName)
+        );
+        const vLabel = skillVersion ? ` (v${skillVersion})` : "";
+        process.stdout.write(`Installing skill: ${p.skillName}${vLabel}\n`);
         await copyDirRecursive(
           path.join(repoRoot, "skills", p.skillName),
           path.join(installDir, "skills", p.skillName),

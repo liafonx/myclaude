@@ -106,6 +106,28 @@
           "design.*system"
         ]
       }
+    },
+    "upstream-sync": {
+      "type": "maintenance",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "update upstream",
+          "sync upstream",
+          "upstream release",
+          "upstream update",
+          "release sync",
+          "sync codeagent-wrapper",
+          "sync codeagent",
+          "maintainer update"
+        ],
+        "intentPatterns": [
+          "(update|sync).*(upstream|release)",
+          "upstream.*(drift|diff|status)",
+          "sync.*(codeagent-wrapper|codeagent)"
+        ]
+      }
     }
   }
 }

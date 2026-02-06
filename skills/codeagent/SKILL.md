@@ -1,7 +1,7 @@
 ---
 name: codeagent
+version: 1.0.0
 description: Route subagent creation through codeagent-wrapper with intelligent backend selection. Analyzes task characteristics to choose the optimal backend (Codex/Claude/Gemini/OpenCode) and enforces correct invocation format. Use whenever a subagent needs to be created.
-allowed-tools: ["Bash(${SKILL_DIR}/scripts/init-codeagent.sh:*)"]
 ---
 
 # Codeagent — Subagent Creation Routing
@@ -15,13 +15,6 @@ This skill governs **backend routing and `codeagent-wrapper` invocation format**
 - **Expected outputs** or success criteria (workflow skill decides)
 
 Always assume a workflow skill has already determined that a subagent is needed and what task it should perform. This skill's job is to route that task to the right backend and invoke `codeagent-wrapper` correctly.
-
-## Init (First Use)
-
-Run once before first invocation to scaffold config and check backend availability:
-```bash
-bash "${SKILL_DIR}/scripts/init-codeagent.sh"
-```
 
 ## Backend Strength Matrix
 
@@ -265,7 +258,7 @@ Return only the final agent message and session ID — do not paste raw logs int
 
 ## User Configuration
 
-Two config files control defaults (scaffolded by init command):
+Two config files control defaults:
 
 **`~/.codeagent/config.yaml`** — global defaults:
 ```yaml

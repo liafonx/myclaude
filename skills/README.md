@@ -10,6 +10,14 @@ This directory contains agent skills (each skill lives in its own folder with a 
 - Purpose: route subagent creation through `codeagent-wrapper`
 - Backends: Codex / Claude / Gemini / OpenCode
 
+## Maintainer Skill
+
+`upstream-sync` is a maintainer-only skill for manual upstream release sync checks and apply flow.
+
+- Path: `skills/upstream-sync/SKILL.md`
+- Setup: `sync/INIT_UPSTREAM_SYNC.md`
+- Reports: `sync/status/upstream-sync-status.json`, `sync/status/upstream-sync-report.md`
+
 ## Install with `npx` (recommended)
 
 List installable items:
